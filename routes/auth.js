@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { check, validationResult } = require("express-validator");
 const User = require("../models/User");
 const dotenv = require("dotenv");
+const auth = require("../middleware/auth");
 
 dotenv.config();
 
@@ -51,7 +52,10 @@ router.post(
         expiresIn: "1h",
       });
 
-      res.json({ token });
+      res.json({
+        token,
+        user: { id: user.id, username: user.username, email: user.email },
+      });
     } catch (err) {
       console.error(err.message);
       res.status(500).json({ msg: "Server error" });
@@ -88,7 +92,7 @@ router.post(
         expiresIn: "1h",
       });
 
-      // ✅ Send token AND user data in response
+      // Send token AND user data in response
       res.json({
         token,
         user: { id: user.id, username: user.username, email: user.email },
