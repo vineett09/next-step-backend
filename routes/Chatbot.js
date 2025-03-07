@@ -16,7 +16,19 @@ router.post("/", async (req, res) => {
           {
             parts: [
               {
-                text: `Roadmap: ${roadmapTitle}\nRoadmap Content: ${roadmapData}\nUser Query: ${message}`,
+                text: `Roadmap: ${roadmapTitle}
+Roadmap Content: ${roadmapData}
+User Query: ${message}
+
+Instructions:
+1. Answer the user's query based on the roadmap information provided.
+2. Format your response with clear structure:
+   - Use numbered lists (1., 2., 3.) for sequential steps or processes
+   - Use bullet points (*, -, •) for non-sequential items
+   - Use paragraphs with blank lines between them for separate thoughts
+   - Use ** or __ for bold text to emphasize important points
+   - Structure your response with proper spacing for readability
+3. Keep responses concise but informative.`,
               },
             ],
           },
