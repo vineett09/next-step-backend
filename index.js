@@ -7,6 +7,7 @@ const bookmarkRoutes = require("./routes/bookmark");
 const progressRoutes = require("./routes/progress");
 const chatbotRoutes = require("./routes/Chatbot");
 const roadmapRoutes = require("./routes/ai/generate-roadmap");
+const customRoadmapRoutes = require("./routes/RoadmapRoutes");
 const cors = require("cors");
 
 dotenv.config();
@@ -26,8 +27,9 @@ mongoose
 app.use("/api/auth", authRoutes);
 app.use("/api/bookmark", bookmarkRoutes);
 app.use("/api/progress", progressRoutes);
-app.use("/api/ai", roadmapRoutes); // Mount the roadmap routes under /api/ai
+app.use("/api/ai", roadmapRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/roadmaps", customRoadmapRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
