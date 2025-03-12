@@ -18,8 +18,42 @@ router.get("/shared-roadmaps", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+// @route   GET api/roadmaps/public/:id
+// @desc    Get a specific public roadmap
+// @access  Public
+router.get("/public/:id", async (req, res) => {
+  try {
+    const roadmap = await Roadmap.findOne({
+      _id: req.params.id,
+      isPrivate: false,
+    })
+      .select(
+        "title description structure settings lastUpdated createdAt type createdBy"
+      )
+      .populate("createdBy", "username");
+
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Public roadmap not found or is private",
+      });
+    }
+
+    res.json({
+      success: true,
+      roadmap,
+    });
+  } catch (error) {
+    console.error("Error fetching public roadmap:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
 // @route   POST api/roadmaps/custom
-// @desc    Create or update a custom roadmap
+// @desc    Create a custom roadmap
 // @access  Private
 router.post("/custom-roadmap", auth, async (req, res) => {
   try {
@@ -221,43 +255,6 @@ router.put("/:id/visibility", auth, async (req, res) => {
     });
   } catch (error) {
     console.error("Error toggling roadmap visibility:", error.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-const optionalAuth = (req, res, next) => {
-  if (req.headers["x-auth-token"] || req.headers["authorization"]) {
-    return auth(req, res, next);
-  }
-  next();
-};
-
-// @route   GET api/roadmaps/:id
-// @desc    Get a specific roadmap
-// @access  Public (optional auth for private roadmaps)
-router.get("/:id", optionalAuth, async (req, res) => {
-  try {
-    const roadmap = await Roadmap.findById(req.params.id);
-
-    if (!roadmap) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Roadmap not found" });
-    }
-
-    // If this is a private roadmap, check permissions
-    if (roadmap.isPrivate) {
-      if (!req.user || roadmap.createdBy.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized to view this roadmap",
-        });
-      }
-    }
-
-    res.json({ success: true, roadmap });
-  } catch (error) {
-    console.error("Error fetching roadmap:", error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });

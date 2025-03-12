@@ -43,7 +43,7 @@ const RoadmapSchema = new mongoose.Schema(
     },
     isPrivate: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
