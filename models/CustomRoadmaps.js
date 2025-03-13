@@ -1,5 +1,24 @@
 const mongoose = require("mongoose");
 
+// Add a schema for individual ratings
+const RatingSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  value: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5,
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 const RoadmapSchema = new mongoose.Schema(
   {
     title: {
@@ -36,6 +55,22 @@ const RoadmapSchema = new mongoose.Schema(
         size: Number,
       },
     },
+    // Add ratings field to store user ratings
+    ratings: {
+      type: [RatingSchema],
+      default: [],
+    },
+    // Add computed fields for quick access to rating stats
+    ratingStats: {
+      averageRating: {
+        type: Number,
+        default: 0,
+      },
+      ratingCount: {
+        type: Number,
+        default: 0,
+      },
+    },
     type: {
       type: String,
       enum: ["custom", "template", "official"],
@@ -60,5 +95,28 @@ const RoadmapSchema = new mongoose.Schema(
 
 // Add text index for search functionality
 RoadmapSchema.index({ title: "text", description: "text" });
+
+// Add method to update rating statistics
+RoadmapSchema.methods.updateRatingStats = function () {
+  const ratings = this.ratings || [];
+  if (ratings.length === 0) {
+    this.ratingStats = { averageRating: 0, ratingCount: 0 };
+    return;
+  }
+
+  const sum = ratings.reduce((total, rating) => total + rating.value, 0);
+  this.ratingStats = {
+    averageRating: parseFloat((sum / ratings.length).toFixed(1)),
+    ratingCount: ratings.length,
+  };
+};
+
+// Pre-save middleware to update rating stats before saving
+RoadmapSchema.pre("save", function (next) {
+  if (this.isModified("ratings")) {
+    this.updateRatingStats();
+  }
+  next();
+});
 
 module.exports = mongoose.model("CustomRoadmap", RoadmapSchema);

@@ -9,7 +9,9 @@ const Roadmap = require("../models/CustomRoadmaps");
 router.get("/shared-roadmaps", async (req, res) => {
   try {
     const publicRoadmaps = await Roadmap.find({ isPrivate: false })
-      .select("title description lastUpdated createdAt type createdBy")
+      .select(
+        "title description lastUpdated createdAt type createdBy ratingStats"
+      )
       .populate("createdBy", "username")
       .sort({ lastUpdated: -1 });
 
@@ -18,7 +20,113 @@ router.get("/shared-roadmaps", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+// Add these routes to RoadmapRoutes.js
 
+// @route   POST api/roadmaps/:id/rating
+// @desc    Rate a roadmap
+// @access  Private
+router.post("/:id/rating", auth, async (req, res) => {
+  try {
+    const { rating } = req.body;
+    const userId = req.user.id;
+
+    // Validate rating
+    const ratingValue = parseInt(rating);
+    if (isNaN(ratingValue) || ratingValue < 1 || ratingValue > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Rating must be a number between 1 and 5",
+      });
+    }
+
+    // Find the roadmap
+    const roadmap = await Roadmap.findById(req.params.id);
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Roadmap not found",
+      });
+    }
+
+    // Check if roadmap is public (only public roadmaps can be rated)
+    if (roadmap.isPrivate) {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot rate private roadmaps",
+      });
+    }
+
+    // Check if user is not rating their own roadmap
+    if (roadmap.createdBy.toString() === userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot rate your own roadmap",
+      });
+    }
+
+    // Check if user has already rated this roadmap
+    const existingRatingIndex = roadmap.ratings.findIndex(
+      (r) => r.userId.toString() === userId
+    );
+
+    if (existingRatingIndex !== -1) {
+      // Update existing rating
+      roadmap.ratings[existingRatingIndex].value = ratingValue;
+      roadmap.ratings[existingRatingIndex].timestamp = Date.now();
+    } else {
+      // Add new rating
+      roadmap.ratings.push({
+        userId,
+        value: ratingValue,
+        timestamp: Date.now(),
+      });
+    }
+
+    await roadmap.save();
+
+    res.json({
+      success: true,
+      message: "Rating submitted successfully",
+      averageRating: roadmap.ratingStats.averageRating,
+      ratingCount: roadmap.ratingStats.ratingCount,
+    });
+  } catch (error) {
+    console.error("Error submitting rating:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// @route   GET api/roadmaps/:id/rating
+// @desc    Get user's rating for a roadmap
+// @access  Private
+router.get("/:id/rating", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const roadmap = await Roadmap.findById(req.params.id);
+
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Roadmap not found",
+      });
+    }
+
+    // Find user's rating
+    const userRating = roadmap.ratings.find(
+      (r) => r.userId.toString() === userId
+    );
+
+    res.json({
+      success: true,
+      userRating: userRating ? userRating.value : null,
+      averageRating: roadmap.ratingStats.averageRating,
+      ratingCount: roadmap.ratingStats.ratingCount,
+    });
+  } catch (error) {
+    console.error("Error getting rating:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 // @route   GET api/roadmaps/public/:id
 // @desc    Get a specific public roadmap
 // @access  Public
@@ -29,7 +137,7 @@ router.get("/public/:id", async (req, res) => {
       isPrivate: false,
     })
       .select(
-        "title description structure settings lastUpdated createdAt type createdBy"
+        "title description structure settings lastUpdated createdAt type createdBy ratingStats"
       )
       .populate("createdBy", "username");
 
