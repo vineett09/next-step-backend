@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Add a schema for individual ratings
 const RatingSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -55,12 +54,10 @@ const RoadmapSchema = new mongoose.Schema(
         size: Number,
       },
     },
-    // Add ratings field to store user ratings
     ratings: {
       type: [RatingSchema],
       default: [],
     },
-    // Add computed fields for quick access to rating stats
     ratingStats: {
       averageRating: {
         type: Number,
@@ -93,10 +90,8 @@ const RoadmapSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Add text index for search functionality
 RoadmapSchema.index({ title: "text", description: "text" });
 
-// Add method to update rating statistics
 RoadmapSchema.methods.updateRatingStats = function () {
   const ratings = this.ratings || [];
   if (ratings.length === 0) {
@@ -111,7 +106,6 @@ RoadmapSchema.methods.updateRatingStats = function () {
   };
 };
 
-// Pre-save middleware to update rating stats before saving
 RoadmapSchema.pre("save", function (next) {
   if (this.isModified("ratings")) {
     this.updateRatingStats();

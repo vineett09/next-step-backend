@@ -36,7 +36,6 @@ Instructions:
       }
     );
 
-    // Extract response
     const reply =
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "I couldn't find an answer.";

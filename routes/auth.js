@@ -10,7 +10,6 @@ dotenv.config();
 
 const router = express.Router();
 
-// User Registration Route
 router.post(
   "/register",
   [
@@ -38,7 +37,7 @@ router.post(
 
       let existingUsername = await User.findOne({ username });
       if (existingUsername) {
-        return res.status(400).json({ msg: "Username is already taken" }); // Handle duplicate username
+        return res.status(400).json({ msg: "Username is already taken" });
       }
 
       const salt = await bcrypt.genSalt(10);
@@ -63,7 +62,6 @@ router.post(
   }
 );
 
-// User Login Route
 router.post(
   "/login",
   [
@@ -92,7 +90,6 @@ router.post(
         expiresIn: "1h",
       });
 
-      // Send token AND user data in response
       res.json({
         token,
         user: { id: user.id, username: user.username, email: user.email },

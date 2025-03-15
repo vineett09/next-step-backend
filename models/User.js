@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Define the progress schema as a subdocument
 const ProgressSchema = new mongoose.Schema({
   roadmapId: { type: String, required: true },
   nodeId: { type: String, required: true },
@@ -19,7 +18,6 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Method to check if a node is completed
 UserSchema.methods.hasCompletedNode = function (roadmapId, nodeId) {
   return this.roadmapProgress.some(
     (progress) =>
@@ -29,7 +27,6 @@ UserSchema.methods.hasCompletedNode = function (roadmapId, nodeId) {
   );
 };
 
-// Method to toggle node completion status
 UserSchema.methods.toggleNodeCompletion = function (roadmapId, nodeId) {
   const existingProgress = this.roadmapProgress.find(
     (progress) => progress.roadmapId === roadmapId && progress.nodeId === nodeId
@@ -45,9 +42,9 @@ UserSchema.methods.toggleNodeCompletion = function (roadmapId, nodeId) {
 UserSchema.methods.toggleBookmark = function (roadmapId) {
   const index = this.bookmarkedRoadmaps.indexOf(roadmapId);
   if (index > -1) {
-    this.bookmarkedRoadmaps.splice(index, 1); // Remove bookmark
+    this.bookmarkedRoadmaps.splice(index, 1);
   } else {
-    this.bookmarkedRoadmaps.push(roadmapId); // Add bookmark
+    this.bookmarkedRoadmaps.push(roadmapId);
   }
   return this.save();
 };

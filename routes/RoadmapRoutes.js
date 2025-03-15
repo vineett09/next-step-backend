@@ -20,7 +20,6 @@ router.get("/shared-roadmaps", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-// Add these routes to RoadmapRoutes.js
 
 // @route   POST api/roadmaps/:id/rating
 // @desc    Rate a roadmap
@@ -39,7 +38,6 @@ router.post("/:id/rating", auth, async (req, res) => {
       });
     }
 
-    // Find the roadmap
     const roadmap = await Roadmap.findById(req.params.id);
     if (!roadmap) {
       return res.status(404).json({
@@ -48,7 +46,6 @@ router.post("/:id/rating", auth, async (req, res) => {
       });
     }
 
-    // Check if roadmap is public (only public roadmaps can be rated)
     if (roadmap.isPrivate) {
       return res.status(403).json({
         success: false,
@@ -56,7 +53,6 @@ router.post("/:id/rating", auth, async (req, res) => {
       });
     }
 
-    // Check if user is not rating their own roadmap
     if (roadmap.createdBy.toString() === userId) {
       return res.status(403).json({
         success: false,
@@ -64,17 +60,14 @@ router.post("/:id/rating", auth, async (req, res) => {
       });
     }
 
-    // Check if user has already rated this roadmap
     const existingRatingIndex = roadmap.ratings.findIndex(
       (r) => r.userId.toString() === userId
     );
 
     if (existingRatingIndex !== -1) {
-      // Update existing rating
       roadmap.ratings[existingRatingIndex].value = ratingValue;
       roadmap.ratings[existingRatingIndex].timestamp = Date.now();
     } else {
-      // Add new rating
       roadmap.ratings.push({
         userId,
         value: ratingValue,
@@ -111,7 +104,6 @@ router.get("/:id/rating", auth, async (req, res) => {
       });
     }
 
-    // Find user's rating
     const userRating = roadmap.ratings.find(
       (r) => r.userId.toString() === userId
     );
@@ -167,40 +159,35 @@ router.post("/custom-roadmap", auth, async (req, res) => {
   try {
     const { title, description, structure, settings } = req.body;
 
-    // Validate input
     if (!title || !structure) {
       return res
         .status(400)
         .json({ success: false, message: "Required fields missing" });
     }
 
-    // Create a new roadmap or update existing one
     let roadmap = await Roadmap.findOne({
       title: title,
       createdBy: req.user.id,
     });
 
     if (roadmap) {
-      // Update existing roadmap
       roadmap.description = description;
       roadmap.structure = structure;
       roadmap.settings = settings;
       roadmap.lastUpdated = Date.now();
     } else {
-      // Create new roadmap
       roadmap = new Roadmap({
         title,
         description,
         structure,
         settings,
         createdBy: req.user.id,
-        type: "custom", // Indicates a user-created roadmap
+        type: "custom",
       });
     }
 
     await roadmap.save();
 
-    // Return success with roadmap id
     return res.status(200).json({
       success: true,
       message: "Roadmap saved successfully",
@@ -211,7 +198,6 @@ router.post("/custom-roadmap", auth, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-// In your router file (e.g., roadmaps.js)
 
 // @route   PUT api/roadmaps/:id
 // @desc    Update an existing roadmap
@@ -220,7 +206,6 @@ router.put("/:id", auth, async (req, res) => {
   try {
     const { title, description, structure, settings } = req.body;
 
-    // Find the roadmap by ID
     let roadmap = await Roadmap.findById(req.params.id);
 
     if (!roadmap) {
@@ -229,7 +214,6 @@ router.put("/:id", auth, async (req, res) => {
         .json({ success: false, message: "Roadmap not found" });
     }
 
-    // Check ownership
     if (roadmap.createdBy.toString() !== req.user.id) {
       return res.status(401).json({
         success: false,
@@ -237,7 +221,6 @@ router.put("/:id", auth, async (req, res) => {
       });
     }
 
-    // Update fields
     roadmap.title = title || roadmap.title;
     roadmap.description = description || roadmap.description;
     roadmap.structure = structure || roadmap.structure;
@@ -285,7 +268,6 @@ router.get("/:id", auth, async (req, res) => {
         .json({ success: false, message: "Roadmap not found" });
     }
 
-    // If this is a private roadmap, check permissions
     if (roadmap.isPrivate) {
       if (!req.user || req.user.id !== roadmap.createdBy.toString()) {
         return res.status(403).json({
@@ -315,7 +297,6 @@ router.delete("/:id", auth, async (req, res) => {
         .json({ success: false, message: "Roadmap not found" });
     }
 
-    // Check ownership
     if (roadmap.createdBy.toString() !== req.user.id) {
       return res.status(401).json({
         success: false,
@@ -345,7 +326,6 @@ router.put("/:id/visibility", auth, async (req, res) => {
         .json({ success: false, message: "Roadmap not found" });
     }
 
-    // Check ownership
     if (roadmap.createdBy.toString() !== req.user.id) {
       return res.status(401).json({
         success: false,
