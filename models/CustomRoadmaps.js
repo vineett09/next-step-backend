@@ -47,12 +47,6 @@ const RoadmapSchema = new mongoose.Schema(
         connection: String,
         text: String,
       },
-      background: {
-        variant: String,
-        color: String,
-        gap: Number,
-        size: Number,
-      },
     },
     ratings: {
       type: [RatingSchema],
