@@ -7,6 +7,11 @@ const ProgressSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
+const RoadmapUsageSchema = new mongoose.Schema({
+  date: { type: Date, default: Date.now },
+  count: { type: Number, default: 0 },
+});
+
 const UserSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true },
@@ -14,6 +19,7 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     roadmapProgress: [ProgressSchema],
     bookmarkedRoadmaps: [{ type: String }],
+    roadmapUsage: [RoadmapUsageSchema],
   },
   { timestamps: true }
 );
@@ -39,6 +45,7 @@ UserSchema.methods.toggleNodeCompletion = function (roadmapId, nodeId) {
   }
   return this.save();
 };
+
 UserSchema.methods.toggleBookmark = function (roadmapId) {
   const index = this.bookmarkedRoadmaps.indexOf(roadmapId);
   if (index > -1) {
@@ -53,4 +60,47 @@ UserSchema.methods.toggleBookmark = function (roadmapId) {
 UserSchema.methods.isBookmarked = function (roadmapId) {
   return this.bookmarkedRoadmaps.includes(roadmapId);
 };
+
+// Method to check and update roadmap generation usage
+UserSchema.methods.checkRoadmapUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsage = this.roadmapUsage.find(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsage) {
+    return {
+      canGenerate: todayUsage.count < 10,
+      usageCount: todayUsage.count,
+      remainingCount: 10 - todayUsage.count,
+    };
+  } else {
+    return {
+      canGenerate: true,
+      usageCount: 0,
+      remainingCount: 10,
+    };
+  }
+};
+
+// Method to increment roadmap usage
+UserSchema.methods.incrementRoadmapUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsageIndex = this.roadmapUsage.findIndex(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsageIndex !== -1) {
+    this.roadmapUsage[todayUsageIndex].count += 1;
+  } else {
+    this.roadmapUsage.push({ date: today, count: 1 });
+  }
+
+  return this.save();
+};
+
 module.exports = mongoose.model("User", UserSchema);

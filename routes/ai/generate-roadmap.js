@@ -1,6 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
+const auth = require("../../middleware/auth"); // Import auth middleware
+const User = require("../../models/User"); // Import User model
 
 dotenv.config();
 const router = express.Router();
@@ -8,7 +10,24 @@ const router = express.Router();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-router.post("/generate", async (req, res) => {
+// Get user's roadmap usage
+router.get("/usage", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const usageInfo = user.checkRoadmapUsage();
+    res.json(usageInfo);
+  } catch (error) {
+    console.error("Error getting usage:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Generate roadmap with limit enforcement
+router.post("/generate", auth, async (req, res) => {
   const { input } = req.body;
 
   if (!input) {
@@ -16,6 +35,22 @@ router.post("/generate", async (req, res) => {
   }
 
   try {
+    // Get user and check usage
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const usageInfo = user.checkRoadmapUsage();
+
+    if (!usageInfo.canGenerate) {
+      return res.status(403).json({
+        error: "Daily limit reached",
+        usageCount: usageInfo.usageCount,
+        remainingCount: 0,
+      });
+    }
+
     const requestBody = {
       contents: [
         {
@@ -102,7 +137,14 @@ Create a detailed, logical learning path that someone could follow step-by-step 
       throw new Error(`Invalid JSON response: ${generatedText}`);
     }
 
-    res.json(generatedData);
+    // Increment usage counter
+    await user.incrementRoadmapUsage();
+    const updatedUsageInfo = user.checkRoadmapUsage();
+
+    res.json({
+      roadmap: generatedData,
+      usageInfo: updatedUsageInfo,
+    });
   } catch (error) {
     console.error("Error generating roadmap:", error.message);
     res
