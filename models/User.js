@@ -11,6 +11,10 @@ const RoadmapUsageSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   count: { type: Number, default: 0 },
 });
+const ChatbotUsageSchema = new mongoose.Schema({
+  date: { type: Date, default: Date.now },
+  count: { type: Number, default: 0 },
+});
 
 const UserSchema = new mongoose.Schema(
   {
@@ -20,6 +24,7 @@ const UserSchema = new mongoose.Schema(
     roadmapProgress: [ProgressSchema],
     bookmarkedRoadmaps: [{ type: String }],
     roadmapUsage: [RoadmapUsageSchema],
+    chatbotUsage: [ChatbotUsageSchema],
   },
   { timestamps: true }
 );
@@ -98,6 +103,45 @@ UserSchema.methods.incrementRoadmapUsage = function () {
     this.roadmapUsage[todayUsageIndex].count += 1;
   } else {
     this.roadmapUsage.push({ date: today, count: 1 });
+  }
+
+  return this.save();
+};
+UserSchema.methods.checkChatbotUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsage = this.chatbotUsage.find(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsage) {
+    return {
+      canUse: todayUsage.count < 10,
+      usageCount: todayUsage.count,
+      remainingCount: 10 - todayUsage.count,
+    };
+  } else {
+    return {
+      canUse: true,
+      usageCount: 0,
+      remainingCount: 10,
+    };
+  }
+};
+
+UserSchema.methods.incrementChatbotUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsageIndex = this.chatbotUsage.findIndex(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsageIndex !== -1) {
+    this.chatbotUsage[todayUsageIndex].count += 1;
+  } else {
+    this.chatbotUsage.push({ date: today, count: 1 });
   }
 
   return this.save();
