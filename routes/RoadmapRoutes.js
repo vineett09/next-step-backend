@@ -465,4 +465,30 @@ router.get("/:id/follow-status", auth, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+// @route   GET api/user/followed-roadmaps
+// @desc    Get all roadmaps that the user is following
+// @access  Private
+router.get("/user/followed-roadmaps", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Find the user and get their followed roadmaps
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      followedRoadmaps: user.followedRoadmaps || [],
+    });
+  } catch (error) {
+    console.error("Error fetching followed roadmaps:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 module.exports = router;
