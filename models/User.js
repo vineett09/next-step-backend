@@ -25,6 +25,9 @@ const UserSchema = new mongoose.Schema(
     bookmarkedRoadmaps: [{ type: String }],
     roadmapUsage: [RoadmapUsageSchema],
     chatbotUsage: [ChatbotUsageSchema],
+    followedRoadmaps: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "CustomRoadmap" },
+    ],
   },
   { timestamps: true }
 );
@@ -146,5 +149,23 @@ UserSchema.methods.incrementChatbotUsage = function () {
 
   return this.save();
 };
+UserSchema.methods.toggleFollowRoadmap = function (roadmapId) {
+  const index = this.followedRoadmaps.findIndex(
+    (id) => id.toString() === roadmapId.toString()
+  );
 
+  if (index > -1) {
+    this.followedRoadmaps.splice(index, 1);
+    return { action: "unfollowed" };
+  } else {
+    this.followedRoadmaps.push(roadmapId);
+    return { action: "followed" };
+  }
+};
+
+UserSchema.methods.isFollowingRoadmap = function (roadmapId) {
+  return this.followedRoadmaps.some(
+    (id) => id.toString() === roadmapId.toString()
+  );
+};
 module.exports = mongoose.model("User", UserSchema);

@@ -20,7 +20,38 @@ router.get("/shared-roadmaps", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+// @route   GET api/roadmaps/:id/followers-count
+// @desc    Get followers count for a roadmap (public access)
+// @access  Public
+router.get("/:id/followers-count", async (req, res) => {
+  try {
+    const roadmapId = req.params.id;
 
+    const roadmap = await Roadmap.findById(roadmapId);
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Roadmap not found",
+      });
+    }
+
+    // If it's a private roadmap, don't expose the followers count
+    if (roadmap.isPrivate) {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot access private roadmap information",
+      });
+    }
+
+    res.json({
+      success: true,
+      followersCount: roadmap.followersCount || 0,
+    });
+  } catch (error) {
+    console.error("Error getting followers count:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 // @route   POST api/roadmaps/:id/rating
 // @desc    Rate a roadmap
 // @access  Private
@@ -346,5 +377,92 @@ router.put("/:id/visibility", auth, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+// @route   POST api/roadmaps/:id/follow
+// @desc    Follow/unfollow a roadmap
+// @access  Private
+router.post("/:id/follow", auth, async (req, res) => {
+  try {
+    const roadmapId = req.params.id;
+    const userId = req.user.id;
 
+    // Get the roadmap
+    const roadmap = await Roadmap.findById(roadmapId);
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Roadmap not found",
+      });
+    }
+
+    // Get the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Toggle follow status
+    const result = user.toggleFollowRoadmap(roadmapId);
+    await user.save();
+
+    // Update followers count on roadmap
+    if (result.action === "followed") {
+      roadmap.followersCount++;
+    } else {
+      if (roadmap.followersCount > 0) {
+        roadmap.followersCount--;
+      }
+    }
+    await roadmap.save();
+
+    return res.json({
+      success: true,
+      following: result.action === "followed",
+      followersCount: roadmap.followersCount,
+      message: `Roadmap ${result.action} successfully`,
+    });
+  } catch (error) {
+    console.error("Error following roadmap:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// @route   GET api/roadmaps/:id/follow-status
+// @desc    Get follow status for a roadmap
+// @access  Private
+router.get("/:id/follow-status", auth, async (req, res) => {
+  try {
+    const roadmapId = req.params.id;
+    const userId = req.user.id;
+
+    const roadmap = await Roadmap.findById(roadmapId);
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Roadmap not found",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const following = user.isFollowingRoadmap(roadmapId);
+
+    res.json({
+      success: true,
+      following,
+      followersCount: roadmap.followersCount,
+    });
+  } catch (error) {
+    console.error("Error getting follow status:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 module.exports = router;
