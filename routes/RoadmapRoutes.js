@@ -52,6 +52,39 @@ router.get("/:id/followers-count", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+// @route   GET api/roadmaps/:id/public-rating
+// @desc    Get public rating information for a roadmap
+// @access  Public
+router.get("/:id/public-rating", async (req, res) => {
+  try {
+    const roadmap = await Roadmap.findById(req.params.id);
+
+    if (!roadmap) {
+      return res.status(404).json({
+        success: false,
+        message: "Roadmap not found",
+      });
+    }
+
+    // If it's a private roadmap, don't expose rating information
+    if (roadmap.isPrivate) {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot access private roadmap information",
+      });
+    }
+
+    res.json({
+      success: true,
+      averageRating: roadmap.ratingStats.averageRating,
+      ratingCount: roadmap.ratingStats.ratingCount,
+    });
+  } catch (error) {
+    console.error("Error getting public rating:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 // @route   POST api/roadmaps/:id/rating
 // @desc    Rate a roadmap
 // @access  Private
