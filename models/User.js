@@ -11,7 +11,14 @@ const RoadmapUsageSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   count: { type: Number, default: 0 },
 });
+
 const ChatbotUsageSchema = new mongoose.Schema({
+  date: { type: Date, default: Date.now },
+  count: { type: Number, default: 0 },
+});
+
+// New schema for AI Suggestions usage
+const AISuggestionsUsageSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   count: { type: Number, default: 0 },
 });
@@ -25,6 +32,7 @@ const UserSchema = new mongoose.Schema(
     bookmarkedRoadmaps: [{ type: String }],
     roadmapUsage: [RoadmapUsageSchema],
     chatbotUsage: [ChatbotUsageSchema],
+    aiSuggestionsUsage: [AISuggestionsUsageSchema], // Add new field to track AI suggestions usage
     followedRoadmaps: [
       { type: mongoose.Schema.Types.ObjectId, ref: "CustomRoadmap" },
     ],
@@ -32,6 +40,7 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Existing methods...
 UserSchema.methods.hasCompletedNode = function (roadmapId, nodeId) {
   return this.roadmapProgress.some(
     (progress) =>
@@ -64,12 +73,10 @@ UserSchema.methods.toggleBookmark = function (roadmapId) {
   return this.save();
 };
 
-// Method to check if roadmap is bookmarked
 UserSchema.methods.isBookmarked = function (roadmapId) {
   return this.bookmarkedRoadmaps.includes(roadmapId);
 };
 
-// Method to check and update roadmap generation usage
 UserSchema.methods.checkRoadmapUsage = function () {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -93,7 +100,6 @@ UserSchema.methods.checkRoadmapUsage = function () {
   }
 };
 
-// Method to increment roadmap usage
 UserSchema.methods.incrementRoadmapUsage = function () {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -110,6 +116,7 @@ UserSchema.methods.incrementRoadmapUsage = function () {
 
   return this.save();
 };
+
 UserSchema.methods.checkChatbotUsage = function () {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -149,6 +156,48 @@ UserSchema.methods.incrementChatbotUsage = function () {
 
   return this.save();
 };
+
+// New methods for AI suggestions usage limit (3 per day)
+UserSchema.methods.checkAISuggestionsUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsage = this.aiSuggestionsUsage.find(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsage) {
+    return {
+      canUse: todayUsage.count < 3, // Limit to 3 uses per day
+      usageCount: todayUsage.count,
+      remainingCount: 3 - todayUsage.count, // Calculate remaining uses
+    };
+  } else {
+    return {
+      canUse: true,
+      usageCount: 0,
+      remainingCount: 3,
+    };
+  }
+};
+
+UserSchema.methods.incrementAISuggestionsUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsageIndex = this.aiSuggestionsUsage.findIndex(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsageIndex !== -1) {
+    this.aiSuggestionsUsage[todayUsageIndex].count += 1;
+  } else {
+    this.aiSuggestionsUsage.push({ date: today, count: 1 });
+  }
+
+  return this.save();
+};
+
 UserSchema.methods.toggleFollowRoadmap = function (roadmapId) {
   const index = this.followedRoadmaps.findIndex(
     (id) => id.toString() === roadmapId.toString()
@@ -168,4 +217,5 @@ UserSchema.methods.isFollowingRoadmap = function (roadmapId) {
     (id) => id.toString() === roadmapId.toString()
   );
 };
+
 module.exports = mongoose.model("User", UserSchema);

@@ -10,13 +10,31 @@ const router = express.Router();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// API route for generating roadmap
-router.post("/suggest", async (req, res) => {
+// API route for generating roadmap - Add auth middleware and usage check
+router.post("/suggest", auth, async (req, res) => {
   try {
+    // Get user from auth middleware
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check if the user has remaining AI suggestion uses for today
+    const usageStatus = user.checkAISuggestionsUsage();
+
+    if (!usageStatus.canUse) {
+      return res.status(429).json({
+        error: "Daily limit reached",
+        message:
+          "You have reached your daily limit of 3 AI suggestions. Please try again tomorrow.",
+        usageCount: usageStatus.usageCount,
+        remainingCount: 0,
+      });
+    }
+
     const { answers } = req.body;
 
     // Prepare the prompt for Gemini
-    // Updated prompt section in the route handler
     const prompt = `
 Based on the following user responses, create a detailed, personalized learning roadmap for someone who wants to become a expert in ${
       answers.careerGoals
@@ -108,11 +126,43 @@ Provide specific details in each section - tool names, course titles, specific c
       .replace(/```html|```/g, "")
       .trim();
 
-    res.json({ roadmap });
+    // Increment the user's AI suggestions usage count
+    await user.incrementAISuggestionsUsage();
+
+    // Get updated usage status after incrementing
+    const updatedUsage = user.checkAISuggestionsUsage();
+
+    res.json({
+      roadmap,
+      usageInfo: {
+        usageCount: updatedUsage.usageCount,
+        remainingCount: updatedUsage.remainingCount,
+      },
+    });
   } catch (error) {
     console.error("Error generating roadmap:", error);
     res.status(500).json({ error: "Failed to generate roadmap" });
   }
 });
+// Add this to your user routes file (e.g., routes/api/user.js)
 
+// GET user's AI suggestions usage
+router.get("/ai-suggestions-usage", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const usageStatus = user.checkAISuggestionsUsage();
+
+    res.json({
+      usageCount: usageStatus.usageCount,
+      remainingCount: usageStatus.remainingCount,
+    });
+  } catch (err) {
+    console.error("Error fetching AI suggestions usage:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 module.exports = router;
