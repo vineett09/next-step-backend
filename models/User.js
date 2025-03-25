@@ -36,6 +36,13 @@ const UserSchema = new mongoose.Schema(
     followedRoadmaps: [
       { type: mongoose.Schema.Types.ObjectId, ref: "CustomRoadmap" },
     ],
+    savedAISuggestions: [
+      {
+        answers: { type: Object },
+        roadmap: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

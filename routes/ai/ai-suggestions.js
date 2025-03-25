@@ -36,86 +36,153 @@ router.post("/suggest", auth, async (req, res) => {
 
     // Prepare the prompt for Gemini
     const prompt = `
-Based on the following user responses, create a detailed, personalized learning roadmap for someone who wants to become a expert in ${
-      answers.careerGoals
-    }. 
-This roadmap will be displayed directly to the user in HTML format with appropriate styling.
+You are a professional career guidance expert. Your task is to Create an in-depth, personalized learning roadmap with comprehensive, actionable guidance tailored specifically to the user's profile.
 
-User preferences:
-- Preference: ${answers.preference}
-- Previous coding experience: ${answers.experience}
-- Career goal: ${answers.careerGoals}
-- Available time commitment: ${answers.timeCommitment}
-- Learning style preference: ${answers.learningStyle}
-- Current knowledge: ${
+User Profile Context:
+- Career Goal: ${answers.careerGoals}
+- Experience Level: ${answers.experience}
+- Learning Preference: ${answers.learningStyle}
+- Time Commitment: ${answers.timeCommitment}
+- Current Knowledge: ${
       Array.isArray(answers.currentKnowledge)
         ? answers.currentKnowledge.join(", ")
         : answers.currentKnowledge || "None"
     }
+- Development Preference: ${answers.preference}
 
-Please structure your response as HTML with the following sections, using appropriate HTML elements and classes:
+Roadmap Composition Guidelines:
+1. Provide a hyper-personalized, strategic learning path
+2. Break down the journey into clear, progressive phases
+3. Offer precise skill acquisition recommendations
+4. Include practical learning resources and project suggestions
+5. Align content with user's specific background and goals
 
-<div class="roadmap-section">
-  <h2>Your Personalized Learning Journey</h2>
-  <p>[Provide a tailored introduction and summary of the recommended path based on their preferences]</p>
-</div>
+Detailed Roadmap Structure:
 
-<div class="roadmap-section">
-  <h3>Step-by-Step Learning Timeline</h3>
-  <div class="timeline">
-    [Create a timeline with proper HTML structure using the timeline-item class for each phase]
-    <div class="timeline-item">
-      <h4>Phase 1: Foundation (Weeks 1-4)</h4>
-      <p>[Detailed description of what to learn]</p>
-    </div>
-    [Additional phases with appropriate timing]
-  </div>
-</div>
+<h1>Comprehensive Learning Roadmap for ${answers.careerGoals}</h1>
 
-<div class="roadmap-section">
-  <h3>Essential Skills to Master</h3>
-  <p>[Introduction paragraph about required skills]</p>
-  <div>
-    [List skills with the skill-tag class]
-    <span class="skill-tag">HTML</span>
-    [Additional skill tags]
-  </div>
+<section>
+  <h2>Personal Learning Journey Overview</h2>
+  <p>A brief overview of the user's career goals, experience level, time commitment, current knowledge and learning preferences and how the roadmap will guide them.</p>
+</section>
+
+<section>
+  <h2>Initial Assessment and Starting Point</h2>
+  <h3>Skill Gap Analysis</h3>
   <ul>
-    [Detailed explanation of key skills with actionable advice]
+    <li>Current Strengths: [Detailed breakdown of existing skills]</li>
+    <li>Critical Skills to Develop: [Precise skill requirements]</li>
+    <li>Recommended Learning Acceleration Strategies</li>
+    ... Add more assessment details as needed
   </ul>
-</div>
+<section> 
+  <h2>Structured Learning Phases</h2>
+  <ol>
+    <li>
+      <h3>Phases (Weeks required)</h3>
+      <p>Intensive fundamental skill-building aligned with ${
+        answers.careerGoals
+      }</p>
+      <ul>
+        <li>You can add lists of skills here required for this phase as may as you want with a topic and then its description</li>
+      </ul>
+    </li>
+    <li>
+      ... Add more phases as needed for the natural flow of the roadmap required for user selected preferences to learn, with same structure as above
+    </li>
+  </ol>
+</section>
+<section>
+<section>
+  <h2>Critical Skills Mastery Roadmap</h2>
+  <ul>
+    <li>
+      <h3>you can add here skills that are required for the roadmap</h3>
+      <p>Detailed breakdown of essential technical competencies</p>
+      <ul>
+        <li>e.g., Programming Languages</li>
+        ... Add more sub-skills as needed with a brief description
+      </ul>
+    </li>
+    <li>
+      <h3>Soft Skills Development</h3>
+      <p>Professional and interpersonal skill enhancement</p>
+      <ul>
+        <li>e.g., Communication Techniques</li>
+        ... Add more soft skills as needed with a brief description
+      </ul>
+    </li>
+    ... Add more critical skills categories as required for the roadmap
+  </ul>
+</section>
 
-<div class="roadmap-section">
-  <h3>Recommended Learning Resources</h3>
-  <p>[Introduction to resources section]</p>
-  [List resources using the resource-card class]
-  <div class="resource-card">
-    <h4>[Resource Name]</h4>
-    <p>[Brief description of the resource and why it's recommended for them]</p>
-  </div>
-  [Additional resources]
-</div>
+<section>
+  <h2>Curated Learning Resources</h2>
+  <ul>
+    <li>
+      <h3>Online Courses and Platforms</h3>
+      <p>Recommended learning resources matching your ${
+        answers.learningStyle
+      } preference</p>
+      <ul>
+        <li>Platform-Specific Courses</li>
+        <li>Certifications</li>
+        <li>Interactive Learning Channels</li>
+      </ul>
+    </li>
+    <li>
+      <h3>Books and Documentation</h3>
+      <p>Essential reading materials for comprehensive understanding with links to read them online</p>
+    </li>
+    <li>
+      <h3>Community and Networking Resources</h3>
+      <p>Professional groups, forums, and collaboration platforms</p>
+    </li>
+  </ul>
+</section>
 
-<div class="roadmap-section">
-  <h3>Portfolio Project Ideas</h3>
-  <p>[Introduction to projects section]</p>
-  [List project ideas using the project-idea class]
-  <div class="project-idea">
-    <h4>[Project Name]</h4>
-    <p>[Project description with specific technologies to use and skills to practice]</p>
-  </div>
-  [Additional project ideas]
-</div>
+<section>
+  <h2>Strategic Project Portfolio</h2>
+  <ul>
+    <li>
+      <h3>Beginner-Level Projects</h3>
+      <p>Foundational project ideas to build initial confidence</p>
+    </li>
+    <li>
+      <h3>Intermediate Challenge Projects</h3>
+      <p>Complex projects demonstrating advanced skills</p>
+    </li>
+    <li>
+      <h3>Portfolio-Worthy Capstone Projects</h3>
+      <p>Comprehensive projects showcasing professional capabilities</p>
+    </li>
+  </ul>
+</section>
 
-Ensure the content is:
-1. Specifically tailored to the user's preferences and career goals
-2. Practical and actionable rather than general advice
-3. Appropriately detailed based on their experience level
-4. Focused on their available time commitment
-5. Aligned with their preferred learning style
-6. Building upon their current knowledge
+<section>
+  <h2>Continuous Learning and Adaptation Strategy</h2>
+  <p>Ongoing skill refinement and staying current with ${
+    answers.careerGoals
+  } industry trends</p>
+  <ul>
+    <li>Regular Skill Assessment Techniques</li>
+    <li>Emerging Technology Tracking</li>
+    <li>Professional Development Milestones</li>
+  </ul>
+</section>
 
-Provide specific details in each section - tool names, course titles, specific concepts, and tangible project ideas rather than generic advice.
+Customization Factors:
+- Precisely tailored to individual learning preferences
+- Adaptable to ${answers.timeCommitment} weekly time investment
+- Considers existing ${answers.experience} experience level
+- Aligned with ${answers.careerGoals} career trajectory
+
+Strategic Recommendations:
+1. Implement a flexible, iterative learning approach
+2. Prioritize hands-on, project-based learning
+3. Maintain consistent skill progression
+4. Develop both technical and soft skills
+5. Build a comprehensive, showcasable portfolio
 `;
     // Generate response using Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -125,9 +192,15 @@ Provide specific details in each section - tool names, course titles, specific c
       .text()
       .replace(/```html|```/g, "")
       .trim();
-
+    // Save the roadmap to the user's saved suggestions
+    user.savedAISuggestions.push({
+      answers,
+      roadmap,
+      createdAt: new Date(),
+    });
     // Increment the user's AI suggestions usage count
     await user.incrementAISuggestionsUsage();
+    await user.save();
 
     // Get updated usage status after incrementing
     const updatedUsage = user.checkAISuggestionsUsage();
@@ -162,6 +235,49 @@ router.get("/ai-suggestions-usage", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching AI suggestions usage:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/saved-suggestions", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      savedSuggestions: user.savedAISuggestions,
+    });
+  } catch (err) {
+    console.error("Error fetching saved AI suggestions:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET a single AI suggestion by ID
+router.get("/:id", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Find the suggestion in the user's saved suggestions array
+    const suggestion = user.savedAISuggestions.find(
+      (suggestion) => suggestion._id.toString() === req.params.id
+    );
+
+    if (!suggestion) {
+      return res.status(404).json({ error: "Suggestion not found" });
+    }
+
+    res.json({
+      success: true,
+      suggestion,
+    });
+  } catch (err) {
+    console.error("Error fetching AI suggestion:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
