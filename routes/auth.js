@@ -5,6 +5,7 @@ const { check, validationResult } = require("express-validator");
 const User = require("../models/User");
 const dotenv = require("dotenv");
 const auth = require("../middleware/auth");
+const firebaseAdmin = require("../services/firebaseAdmin");
 
 dotenv.config();
 
@@ -100,5 +101,85 @@ router.post(
     }
   }
 );
+router.post(
+  "/google-login",
+  [
+    check("email", "Valid email is required").isEmail(),
+    check("googleId", "Google ID Token is required").not().isEmpty(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
+    const { username, email, googleId } = req.body;
+
+    try {
+      // Verify Google ID Token
+      let decodedToken;
+      try {
+        decodedToken = await firebaseAdmin.auth().verifyIdToken(googleId);
+
+        // Additional verification
+        if (decodedToken.email !== email) {
+          return res.status(401).json({ msg: "Email verification failed" });
+        }
+      } catch (error) {
+        console.error("Firebase Token Verification Error:", error);
+        return res.status(401).json({ msg: "Invalid Google authentication" });
+      }
+
+      // Check if user exists
+      let user = await User.findOne({ email });
+
+      if (!user) {
+        // Create new user if not exists
+        const salt = await bcrypt.genSalt(10);
+        const randomPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+        user = new User({
+          username: username || email.split("@")[0],
+          email,
+          password: hashedPassword,
+          googleId: decodedToken.uid,
+        });
+
+        await user.save();
+      } else {
+        // Handle existing user
+        if (user.googleId && user.googleId !== decodedToken.uid) {
+          return res.status(400).json({
+            msg: "Email already registered with a different authentication method",
+          });
+        }
+
+        // Update googleId if not set
+        if (!user.googleId) {
+          user.googleId = decodedToken.uid;
+          await user.save();
+        }
+      }
+
+      // Generate token
+      const payload = { user: { id: user.id } };
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        },
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({ msg: "Server error" });
+    }
+  }
+);
 module.exports = router;
