@@ -16,8 +16,19 @@ router.post(
   [
     check("username", "Username is required").not().isEmpty(),
     check("email", "Valid email is required").isEmail(),
-    check("password", "Password should be at least 6 characters").isLength({
-      min: 6,
+    // Conditional password validation
+    check("password").custom((password, { req }) => {
+      // If googleId is present, skip password validation
+      if (req.body.googleId) {
+        return true;
+      }
+
+      // For standard registration, enforce password length
+      if (!password || password.length < 6) {
+        throw new Error("Password should be at least 6 characters");
+      }
+
+      return true;
     }),
   ],
   async (req, res) => {
@@ -26,7 +37,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, email, password } = req.body;
+    const { username, email, password, googleId } = req.body;
 
     try {
       let existingUser = await User.findOne({ email });
@@ -41,6 +52,33 @@ router.post(
         return res.status(400).json({ msg: "Username is already taken" });
       }
 
+      // For Google Sign-Up
+      if (googleId) {
+        const salt = await bcrypt.genSalt(10);
+        const randomPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+        const user = new User({
+          username,
+          email,
+          password: hashedPassword,
+          googleId,
+        });
+
+        await user.save();
+
+        const payload = { user: { id: user.id } };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, {
+          expiresIn: "1h",
+        });
+
+        return res.json({
+          token,
+          user: { id: user.id, username: user.username, email: user.email },
+        });
+      }
+
+      // For standard registration
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -62,7 +100,6 @@ router.post(
     }
   }
 );
-
 router.post(
   "/login",
   [
@@ -130,6 +167,22 @@ router.post(
         return res.status(401).json({ msg: "Invalid Google authentication" });
       }
 
+      // Generate a unique username
+      const generateUniqueUsername = async (baseUsername) => {
+        let uniqueUsername = baseUsername;
+        let counter = 1;
+        while (await User.findOne({ username: uniqueUsername })) {
+          uniqueUsername = `${baseUsername}${counter}`;
+          counter++;
+        }
+        return uniqueUsername;
+      };
+
+      // Determine username
+      const baseUsername =
+        username || email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
+      const finalUsername = await generateUniqueUsername(baseUsername);
+
       // Check if user exists
       let user = await User.findOne({ email });
 
@@ -140,7 +193,7 @@ router.post(
         const hashedPassword = await bcrypt.hash(randomPassword, salt);
 
         user = new User({
-          username: username || email.split("@")[0],
+          username: finalUsername,
           email,
           password: hashedPassword,
           googleId: decodedToken.uid,
