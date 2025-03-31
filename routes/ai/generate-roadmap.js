@@ -83,7 +83,7 @@ Structure must have exactly 3 levels of hierarchy (no nested children beyond sub
 
 Node limits:
 - Root node should have as many main categories as required for a comprehensive learning map
-- You can add as many main categories as needed(try to extend the list of main categories as needed)
+- You can add as many main categories as needed(try to extend the list of main categories as needed) and create a separate step for each main category
 - Each main category should have 3-8 subcategories as children
 - Subcategories are leaf nodes (no children)
 
