@@ -56,18 +56,31 @@ router.post("/generate", auth, async (req, res) => {
         {
           parts: [
             {
-              text: `Generate a detailed learning roadmap covering all topics and skills in a separate step for ${input} in hierarchical JSON format with the following simplified structure:
-              {
-  "name": "[TOPIC] Learning Roadmap 2025",
+              text: `Generate a long detailed learning roadmap containing at least 10 main categories or more for ${input} in hierarchical JSON format with the following structure:
+{
+  "name": "${input} ",
   "children": [
     {
       "name": "Main Category 1",
       "children": [
         {
           "name": "Subcategory 1.1",
+          "children": [
+            {
+              "name": "Topic 1.1.1"
+            },
+            {
+              "name": "Topic 1.1.2"
+            }
+          ]
         },
         {
           "name": "Subcategory 1.2",
+          "children": [
+            {
+              "name": "Topic 1.2.1"
+            }
+          ]
         }
       ]
     }
@@ -76,35 +89,36 @@ router.post("/generate", auth, async (req, res) => {
 
 Requirements:
 
-Structure must have exactly 3 levels of hierarchy (no nested children beyond subcategories):
-- Level 1: Root node (the roadmap itself)
-- Level 2: Main categories (fundamental areas of knowledge)
-- Level 3: Subcategories (specific topics within each area)
+1. Structure must follow exactly 3 levels of hierarchy:
+   - Level 1: Main categories (fundamental areas of knowledge)
+   - Level 2: Subcategories (specific topics within each area)
+   - Level 3: Individual topics (specific skills, tools, or concepts)
 
-Node limits:
-- Root node should have as many main categories as required for a comprehensive learning map
-- You can add as many main categories as needed(try to extend the list of main categories as needed) and create a separate step for each main category
-- Each main category should have 3-8 subcategories as children
-- Subcategories are leaf nodes (no children)
+2. Each main category should represent a distinct step in the learning journey
+   - Organize main categories in logical progression order
+   - Include only one main category per step
+   - Avoid combining multiple main categories into a single step
+   - Create separate steps for each main category for better user understanding
+   - Try to avoid too many subcategories in a single main category
+   - Organize to create maincategories for every topic in a separate single step
 
-Naming guidelines:
-- Use clear, concise names (1-4 words) for all nodes
-- Main categories should represent broad knowledge areas
-- Subcategories should represent focused topics that encompass several related skills
+3. Include comprehensive content:
+   - Cover all essential topics, tools, frameworks, and concepts required to learn ${input}
+   - Include current industry-relevant technologies and practices for 2025
 
-Content focus:
-- Ensure the roadmap reflects current industry standards and practices for 2025
-- Include specific guidance, tools, technologies, and methodologies relevant to ${input}
-- Structure the content so a complete beginner can follow the roadmap without needing additional hierarchical levels
-- Do not generate descriptions, provide only names of topics and subtopics
-- Do not try to add many topics in one step, try to give each topic a separate step 
+4. Naming and format:
+   - Use clear, concise names (1-5 words) for all nodes
+   - Do not provide long names for nodes
+   - Do NOT include descriptions for any nodes
+   - Do NOT include any "preferred: true" or similar flags
+   - Only include the "name" field for each node
 
-Output format:
-- Return valid JSON only
-- Do not include markdown formatting or code blocks
-- Ensure proper nesting and JSON syntax
+5. Output format:
+   - Return valid JSON only
+   - Include only the hierarchical structure with names
+   - Ensure proper nesting and JSON syntax
 
-Create a detailed, logical learning path that someone could follow step-by-step to learn ${input}, with all necessary details contained within the first-level children's descriptions.`,
+Create a complete learning roadmap that covers all necessary knowledge areas for ${input} to the end, organized in a logical progression from beginner to advanced levels.`,
             },
           ],
         },
