@@ -281,5 +281,27 @@ router.get("/:id", auth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+// Delete AI Suggestion
+router.delete("/ai-suggestions/:suggestionId", auth, async (req, res) => {
+  try {
+    const userId = req.user.id; // Ensure you have user authentication in place
+    const { suggestionId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Remove the suggestion by filtering
+    user.savedAISuggestions = user.savedAISuggestions.filter(
+      (suggestion) => suggestion._id.toString() !== suggestionId
+    );
+
+    await user.save();
+    res.status(200).json({ message: "AI suggestion deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error", error });
+  }
+});
 
 module.exports = router;
