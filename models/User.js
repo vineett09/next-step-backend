@@ -17,12 +17,15 @@ const ChatbotUsageSchema = new mongoose.Schema({
   count: { type: Number, default: 0 },
 });
 
-// New schema for AI Suggestions usage
 const AISuggestionsUsageSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   count: { type: Number, default: 0 },
 });
-
+const AIGeneratedRoadmapSchema = new mongoose.Schema({
+  roadmap: { type: Object, required: true },
+  title: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
 const UserSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true },
@@ -32,7 +35,7 @@ const UserSchema = new mongoose.Schema(
     bookmarkedRoadmaps: [{ type: String }],
     roadmapUsage: [RoadmapUsageSchema],
     chatbotUsage: [ChatbotUsageSchema],
-    aiSuggestionsUsage: [AISuggestionsUsageSchema], // Add new field to track AI suggestions usage
+    aiSuggestionsUsage: [AISuggestionsUsageSchema],
     followedRoadmaps: [
       { type: mongoose.Schema.Types.ObjectId, ref: "CustomRoadmap" },
     ],
@@ -43,16 +46,16 @@ const UserSchema = new mongoose.Schema(
         createdAt: { type: Date, default: Date.now },
       },
     ],
+    aiGeneratedRoadmaps: [AIGeneratedRoadmapSchema],
     googleId: {
       type: String,
       unique: true,
-      sparse: true, // Allows multiple null values
+      sparse: true,
     },
   },
   { timestamps: true }
 );
 
-// Existing methods...
 UserSchema.methods.hasCompletedNode = function (roadmapId, nodeId) {
   return this.roadmapProgress.some(
     (progress) =>
@@ -169,7 +172,6 @@ UserSchema.methods.incrementChatbotUsage = function () {
   return this.save();
 };
 
-// New methods for AI suggestions usage limit (3 per day)
 UserSchema.methods.checkAISuggestionsUsage = function () {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -180,9 +182,9 @@ UserSchema.methods.checkAISuggestionsUsage = function () {
 
   if (todayUsage) {
     return {
-      canUse: todayUsage.count < 3, // Limit to 3 uses per day
+      canUse: todayUsage.count < 3,
       usageCount: todayUsage.count,
-      remainingCount: 3 - todayUsage.count, // Calculate remaining uses
+      remainingCount: 3 - todayUsage.count,
     };
   } else {
     return {

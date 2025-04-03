@@ -26,6 +26,66 @@ router.get("/usage", auth, async (req, res) => {
   }
 });
 
+// Get all AI-generated roadmaps for the user
+router.get("/generated-roadmaps", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("aiGeneratedRoadmaps");
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+    res.json({ aiGeneratedRoadmaps: user.aiGeneratedRoadmaps });
+  } catch (error) {
+    console.error("Error fetching AI-generated roadmaps:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Get specific AI-generated roadmap by ID
+router.get("/generated-roadmaps/:id", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("aiGeneratedRoadmaps");
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const roadmap = user.aiGeneratedRoadmaps.id(req.params.id);
+    if (!roadmap) {
+      return res.status(404).json({ msg: "Roadmap not found" });
+    }
+
+    res.json({ roadmap });
+  } catch (error) {
+    console.error("Error fetching AI-generated roadmap:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+// Delete an AI-generated roadmap by ID
+router.delete("/generated-roadmaps/:id", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    // Find the roadmap by ID and remove it
+    const roadmapIndex = user.aiGeneratedRoadmaps.findIndex(
+      (roadmap) => roadmap._id.toString() === req.params.id
+    );
+
+    if (roadmapIndex === -1) {
+      return res.status(404).json({ msg: "Roadmap not found" });
+    }
+
+    user.aiGeneratedRoadmaps.splice(roadmapIndex, 1);
+    await user.save();
+
+    res.json({ msg: "Roadmap deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting roadmap:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // Generate roadmap with limit enforcement
 router.post("/generate", auth, async (req, res) => {
   const { input } = req.body;
@@ -152,12 +212,27 @@ Create a complete learning roadmap that covers all necessary knowledge areas for
       throw new Error(`Invalid JSON response: ${generatedText}`);
     }
 
+    // Save the roadmap to the user's aiGeneratedRoadmaps
+    const roadmapEntry = {
+      roadmap: generatedData,
+      title: input,
+    };
+
+    user.aiGeneratedRoadmaps.push(roadmapEntry);
+
     // Increment usage counter
     await user.incrementRoadmapUsage();
+    await user.save();
+
+    // Get the ID of the newly created roadmap
+    const newRoadmapId =
+      user.aiGeneratedRoadmaps[user.aiGeneratedRoadmaps.length - 1]._id;
+
     const updatedUsageInfo = user.checkRoadmapUsage();
 
     res.json({
       roadmap: generatedData,
+      roadmapId: newRoadmapId,
       usageInfo: updatedUsageInfo,
     });
   } catch (error) {
