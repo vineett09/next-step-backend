@@ -35,25 +35,39 @@ router.post("/", auth, async (req, res) => {
             parts: [
               {
                 text: `Roadmap: ${roadmapTitle}
-Roadmap Content: ${roadmapData}
-User Query: ${message}
-
-Instructions:
-1. Answer the user's query based on the roadmap information provided.
-2. Format your response with clear structure:
-   - Use numbered lists (1., 2., 3.) for sequential steps or processes
-   - Use bullet points (*, -, •) for non-sequential items
-   - Use paragraphs with blank lines between them for separate thoughts
-   - Use ** or __ for bold text to emphasize important points
-   - Structure your response with proper spacing for readability
-3. Keep responses concise but informative.`,
+    Roadmap Content: ${roadmapData}
+    User Query: ${message}
+    
+    Instructions:
+    1. Answer the user's query based on the roadmap information provided.
+    2. Format your response with proper structure and formatting:
+       - Use markdown-style headers (# Header, ## Subheader)
+       - Use code blocks with syntax highlighting for code examples: \`\`\`language
+         code here
+         \`\`\`
+       - Use inline code with backticks for short code snippets, variables, or commands
+       - Use numbered lists (1., 2., 3.) for sequential steps or processes
+       - Use bullet points (*, -, •) for non-sequential items
+       - Use paragraphs with blank lines between them for separate thoughts
+       - Use bold text (**bold**) for important concepts and key terms
+       - Use tables to present structured data or comparisons
+       - Use callout boxes for warnings, tips, and important information:
+         > ⚠️ Warning information here
+         > 💡 Tip information here
+         > 📌 Important information here
+       - Include relevant resources as [Resource](URL) when applicable
+       - Provide code examples when they would be helpful
+    
+    3. Make sure your response is well-structured and organized, with appropriate spacing between sections
+    4. Keep responses concise but informative
+    5. Prioritize practical information and executable examples over theoretical explanations
+    6. When answering technical questions, include code examples where relevant`,
               },
             ],
           },
         ],
       }
     );
-
     const reply =
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "I couldn't find an answer.";
