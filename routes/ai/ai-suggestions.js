@@ -1,8 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
-const auth = require("../../middleware/auth"); // Import auth middleware
-const User = require("../../models/User"); // Import User model
+const auth = require("../../middleware/auth");
+const User = require("../../models/User");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 dotenv.config();
@@ -10,7 +10,6 @@ const router = express.Router();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// API route for generating roadmap - Add auth middleware and usage check
 router.post("/suggest", auth, async (req, res) => {
   try {
     // Get user from auth middleware
@@ -217,7 +216,6 @@ Strategic Recommendations:
     res.status(500).json({ error: "Failed to generate roadmap" });
   }
 });
-// Add this to your user routes file (e.g., routes/api/user.js)
 
 // GET user's AI suggestions usage
 router.get("/ai-suggestions-usage", auth, async (req, res) => {

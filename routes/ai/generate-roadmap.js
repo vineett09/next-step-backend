@@ -1,8 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
-const auth = require("../../middleware/auth"); // Import auth middleware
-const User = require("../../models/User"); // Import User model
+const auth = require("../../middleware/auth");
+const User = require("../../models/User");
 
 dotenv.config();
 const router = express.Router();

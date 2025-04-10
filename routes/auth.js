@@ -48,8 +48,8 @@ router.post(
       await user.save();
 
       const payload = {
-        userId: user._id, // Change from user.id to user._id
-        email: user.email, // Optional: add more claims if needed
+        userId: user._id,
+        email: user.email,
       };
 
       const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -91,8 +91,8 @@ router.post(
         return res.status(400).json({ msg: "Invalid email or password" });
 
       const payload = {
-        userId: user._id, // Change from user.id to user._id
-        email: user.email, // Optional: add more claims if needed
+        userId: user._id,
+        email: user.email,
       };
 
       const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -127,7 +127,6 @@ router.post(
     check("googleId", "Google ID Token is required").not().isEmpty(),
   ],
   async (req, res) => {
-    // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -283,10 +282,6 @@ router.post(
           isNewUser: !user.lastLogin,
         },
       });
-
-      // Update last login timestamp
-      user.lastLogin = new Date();
-      await user.save();
     } catch (error) {
       console.error("Google Login Process Failed:", {
         error: error.message,
@@ -330,12 +325,11 @@ router.post("/forgot-password", async (req, res) => {
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
     // Configure email transporter
-    // Configure email transporter
     const transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE, // e.g. 'gmail'
-      host: process.env.EMAIL_HOST || "smtp.gmail.com", // Add this line
-      port: process.env.EMAIL_PORT || 587, // Add this line
-      secure: process.env.EMAIL_SECURE === "true", // Add this line
+      service: process.env.EMAIL_SERVICE,
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: process.env.EMAIL_PORT || 587,
+      secure: process.env.EMAIL_SECURE === "true",
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD,
