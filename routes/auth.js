@@ -16,9 +16,13 @@ router.post(
   [
     check("username", "Username is required").not().isEmpty(),
     check("email", "Valid email is required").isEmail(),
-    check("password", "Password should be at least 6 characters").isLength({
-      min: 6,
-    }),
+    check("password")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters")
+      .matches(/[A-Z]/)
+      .withMessage("Password must contain at least one uppercase letter")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number"),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -66,7 +70,6 @@ router.post(
     }
   }
 );
-
 router.post(
   "/login",
   [
@@ -366,44 +369,64 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 // Reset password with token
-router.post("/reset-password/:resetToken", async (req, res) => {
-  const { password } = req.body;
-  const { resetToken } = req.params;
-
-  try {
-    // Find user with valid token
-    const user = await User.findOne({
-      resetPasswordToken: resetToken,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
+router.post(
+  "/reset-password/:resetToken",
+  [
+    check("password")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters")
+      .matches(/[A-Z]/)
+      .withMessage("Password must contain at least one uppercase letter")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number"),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        msg: "Invalid or expired reset token",
+        msg: errors.array()[0].msg,
       });
     }
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    const { password } = req.body;
+    const { resetToken } = req.params;
 
-    // Clear reset token fields
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
+    try {
+      // Find user with valid token
+      const user = await User.findOne({
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: { $gt: Date.now() },
+      });
 
-    await user.save();
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          msg: "Invalid or expired reset token",
+        });
+      }
 
-    res.status(200).json({
-      success: true,
-      msg: "Password has been reset successfully",
-    });
-  } catch (err) {
-    console.error("Password reset error:", err);
-    res.status(500).json({
-      success: false,
-      msg: "Error resetting password",
-    });
+      // Hash new password
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+
+      // Clear reset token fields
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        msg: "Password has been reset successfully",
+      });
+    } catch (err) {
+      console.error("Password reset error:", err);
+      res.status(500).json({
+        success: false,
+        msg: "Error resetting password",
+      });
+    }
   }
-});
+);
 module.exports = router;
