@@ -88,12 +88,13 @@ router.delete("/generated-roadmaps/:id", auth, async (req, res) => {
 
 // Generate roadmap with limit enforcement
 router.post("/generate", auth, async (req, res) => {
-  const { input } = req.body;
+  const { input, timeframe, level, contextInfo } = req.body;
 
-  if (!input) {
-    return res.status(400).json({ error: "Input is required" });
+  if (!input || !timeframe || !level) {
+    return res
+      .status(400)
+      .json({ error: "Input, timeframe, and level are required" });
   }
-
   try {
     // Get user and check usage
     const user = await User.findById(req.user.id);
@@ -116,7 +117,10 @@ router.post("/generate", auth, async (req, res) => {
         {
           parts: [
             {
-              text: `Generate a long detailed learning roadmap containing at least 10 main categories or more for ${input} in hierarchical JSON format with the following structure:
+              text: `Generate a long detailed learning roadmap containing at least 10 main categories or more, Try to provide the roadmap which is built to cover the timeframe of ${timeframe} to learn at the ${level} level and make it more efficient by taking the context into account "${
+                contextInfo || "No additional context"
+              }". The roadmap should be in hierarchical JSON format with the following structure:
+              
 {
   "name": "${input} ",
   "children": [
@@ -157,33 +161,62 @@ Requirements:
 2. Each main category should represent a distinct step in the learning journey
    - Organize main categories in logical progression order
    - Include only one main category per step
-   - Avoid combining multiple main categories into a single step
-   - Create separate steps for each main category for better user understanding
-   - Try to avoid too many subcategories in a single main category
-   - Organize to create maincategories for every topic in a separate single step
+   - Avoid combining multiple topics in same main category or subcategory for better user understanding
 
 3. Include comprehensive content:
-   - Cover all essential topics, tools, frameworks, and concepts required to learn ${input}
+   - Cover all essential topics, tools, frameworks, and concepts required to learn ${input} in ${timeframe} to the ${level} level
    - Include current industry-relevant technologies and practices for 2025
 
 4. Naming and format:
-   - Use clear, concise names (1-5 words) for all nodes
+   - Use clear, concise names (1-3 words) for all nodes
    - Do not provide long names for nodes
    - Do NOT include descriptions for any nodes
-   - Do NOT include any "preferred: true" or similar flags
-   - Only include the "name" field for each node
+- For each main category (Level 1), include an additional "timeframe" field that shows how much time to spend on that step in days/weeks/months
+- Do NOT include "timeframe" in subcategories or individual topics, only on Level 1 nodes
 
 5. Output format:
    - Return valid JSON only
    - Include only the hierarchical structure with names
    - Ensure proper nesting and JSON syntax
 
-Create a complete learning roadmap that covers all necessary knowledge areas for ${input} to the end, organized in a logical progression from beginner to advanced levels.`,
+Create a complete learning roadmap that covers all necessary knowledge areas for ${input} to the end of ${timeframe} to learn at ${level} level and an additional context of "${
+                contextInfo || "No additional context"
+              }" provided by the user, organized in a logical progression to learn`,
             },
           ],
         },
       ],
     };
+    const feedbackRequestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `The user has chosen the topic: "${input}" to learn at "${level}" level and timeframe "${timeframe}". They also added:
+    "${contextInfo || "No additional context"}".
+    
+    Please provide a short helpful note or feedback to the user in one paragraph including:
+    - Whether their goal and level align well with the timeframe
+    - Any potential improvements in how they structured their query
+    - Suggestions for better outcomes, learning tips, better time commitment or extra tools to consider
+    - Don't include any extra symbols or formatting, just plain text
+    Limit response to 6-7 sentences. Be direct, clear, and supportive.`,
+            },
+          ],
+        },
+      ],
+    };
+
+    const feedbackResponse = await axios.post(
+      GEMINI_API_URL,
+      feedbackRequestBody,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    const aiFeedbackText =
+      feedbackResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     const response = await axios.post(GEMINI_API_URL, requestBody, {
       headers: {
@@ -234,6 +267,7 @@ Create a complete learning roadmap that covers all necessary knowledge areas for
       roadmap: generatedData,
       roadmapId: newRoadmapId,
       usageInfo: updatedUsageInfo,
+      aiFeedback: aiFeedbackText,
     });
   } catch (error) {
     console.error("Error generating roadmap:", error.message);
