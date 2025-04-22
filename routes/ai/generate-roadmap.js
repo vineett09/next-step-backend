@@ -8,7 +8,7 @@ dotenv.config();
 const router = express.Router();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // Get user's roadmap usage
 router.get("/usage", auth, async (req, res) => {
@@ -117,12 +117,12 @@ router.post("/generate", auth, async (req, res) => {
         {
           parts: [
             {
-              text: `Generate a long detailed learning roadmap containing at least 10 main categories or more, Try to provide the roadmap which is built to cover the timeframe of ${timeframe} to learn at the ${level} level and make it more efficient by taking the context into account "${
+              text: `Generate a long detailed learning roadmap for "${input}", Try to provide the roadmap which is built to cover the timeframe of ${timeframe} to learn at the ${level} level and make it more efficient by taking the context into account "${
                 contextInfo || "No additional context"
               }". The roadmap should be in hierarchical JSON format with the following structure:
               
 {
-  "name": "${input} ",
+  "name": "Short Name of the ${input} based on query(2-3 words)",
   "children": [
     {
       "name": "Main Category 1",
@@ -148,6 +148,7 @@ router.post("/generate", auth, async (req, res) => {
         }
       ]
     }
+      // Add as many main categories as needed for natural learning progression (minimum 10)
   ]
 }
 
@@ -159,6 +160,7 @@ Requirements:
    - Level 3: Individual topics (specific skills, tools, or concepts)
 
 2. Each main category should represent a distinct step in the learning journey
+   - Contain AT LEAST 10 main categories (Level 1 nodes), but FEEL FREE TO ADD MORE if appropriate for natural learning progression
    - Organize main categories in logical progression order
    - Include only one main category per step
    - Avoid combining multiple topics in same main category or subcategory for better user understanding
@@ -276,5 +278,198 @@ Create a complete learning roadmap that covers all necessary knowledge areas for
       .json({ error: error.message || "Failed to generate roadmap" });
   }
 });
+// Regenerate roadmap with modifications
+router.post("/regenerate", auth, async (req, res) => {
+  const {
+    originalTopic,
+    timeframe,
+    level,
+    contextInfo,
+    modifications,
+    originalRoadmap,
+  } = req.body;
 
+  if (!originalTopic || !timeframe || !level || !modifications) {
+    return res.status(400).json({
+      error: "Original topic, timeframe, level, and modifications are required",
+    });
+  }
+
+  try {
+    // Get user and check usage
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const usageInfo = user.checkRoadmapUsage();
+
+    if (!usageInfo.canGenerate) {
+      return res.status(403).json({
+        error: "Daily limit reached",
+        usageCount: usageInfo.usageCount,
+        remainingCount: 0,
+      });
+    }
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `You are going to regenerate and provide a more enhanced learning roadmap based on user feedback. 
+    
+    ORIGINAL ROADMAP INFORMATION:
+    - Topic: "${originalTopic}"
+    - Timeframe: ${timeframe}
+    - Level: ${level}
+    - Context: "${contextInfo || "No additional context"}"
+    
+    USER REQUESTED MODIFICATIONS:
+    "${modifications}"
+    
+    ORIGINAL ROADMAP STRUCTURE (JSON):
+    ${JSON.stringify(originalRoadmap, null, 2)}
+    
+    Based on the user's modification request, generate an improved version of the roadmap.
+    The regenerated roadmap MUST:
+    1. Incorporate the specific changes requested by the user
+    2. Contain AT LEAST 10 main categories (Level 1 nodes), but FEEL FREE TO ADD MORE if appropriate for natural learning progression
+    3. Maintain THREE LEVELS of hierarchy exactly as in the original
+    4. Present a coherent learning progression from beginning to end
+    5. Keep all node names EXTREMELY SHORT (1-3 words maximum)
+    
+    Generate a NEW roadmap in hierarchical JSON format with the following structure:
+    {
+      "name": "Short Name of the topic based on query(2-3 words)", // Keep this EXACTLY as provided here
+      "children": [
+        {
+          "name": "Short Name", // MAXIMUM 3 words
+          "timeframe": "X weeks/days",
+          "children": [
+            {
+              "name": "Short Name", // MAXIMUM 3 words
+              "children": [
+                {
+                  "name": "Short Name" // MAXIMUM 3 words
+                },
+                {
+                  "name": "Short Name" // MAXIMUM 3 words
+                }
+              ]
+            }
+          ]
+        }
+        // Add as many main categories as needed for natural learning progression (minimum 10)
+      ]
+    }
+    
+    STRICT REQUIREMENTS:
+    1. Structure MUST follow EXACTLY 3 levels of hierarchy:
+       - Root node with exact original topic name: "${originalTopic}"
+       - Level 1: Main categories (fundamental areas) - MINIMUM 10 categories, but ADD MORE if needed for complete learning journey
+       - Level 2: Subcategories (specific topics within each area)
+       - Level 3: Individual topics (specific skills, tools, or concepts)
+    2. EVERY node name MUST be 1-3 words MAXIMUM, extremely concise
+    3. Each main category MUST represent a distinct step in the learning journey
+    4. Include "timeframe" field ONLY for main categories (Level 1 nodes)
+    5. Create a natural learning progression with comprehensive coverage of all necessary topics
+    6. Return valid JSON only - ensure proper syntax
+    7. Do NOT use adjectives or extra words in node names - be extremely concise
+    
+    Create a complete improved learning roadmap that addresses the user's modification requests while maintaining these strict formatting requirements. The roadmap should represent a natural learning journey that may require more than 10 steps - don't artificially limit yourself to exactly 10 steps.`,
+            },
+          ],
+        },
+      ],
+    };
+
+    const feedbackRequestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `The user generated a roadmap for: "${originalTopic}" at "${level}" level with timeframe "${timeframe}".
+They've requested modifications: "${modifications}".
+
+Please provide a short helpful note about the improvements made to their roadmap in one paragraph including:
+- What specific changes were made based on their request
+- How the modified roadmap better addresses their needs
+- Any additional insights about the modified learning path
+
+Limit response to 5-6 sentences. Be direct, clear, and highlight the value of the changes made.`,
+            },
+          ],
+        },
+      ],
+    };
+
+    const feedbackResponse = await axios.post(
+      GEMINI_API_URL,
+      feedbackRequestBody,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    const aiFeedbackText =
+      feedbackResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    const response = await axios.post(GEMINI_API_URL, requestBody, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    let generatedText =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedText) {
+      throw new Error("Invalid response from Gemini API");
+    }
+
+    generatedText = generatedText
+      .replace(/```json|```/g, "")
+      .replace(/\[\d+\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let generatedData;
+    try {
+      generatedData = JSON.parse(generatedText);
+    } catch (jsonError) {
+      console.error("Raw response before parsing:", generatedText);
+      throw new Error(`Invalid JSON response: ${generatedText}`);
+    }
+
+    // Save the regenerated roadmap to the user's aiGeneratedRoadmaps
+    const roadmapEntry = {
+      roadmap: generatedData,
+      title: `${originalTopic} (Modified)`,
+    };
+
+    user.aiGeneratedRoadmaps.push(roadmapEntry);
+
+    // Increment usage counter
+    await user.incrementRoadmapUsage();
+    await user.save();
+
+    // Get the ID of the newly created roadmap
+    const newRoadmapId =
+      user.aiGeneratedRoadmaps[user.aiGeneratedRoadmaps.length - 1]._id;
+
+    const updatedUsageInfo = user.checkRoadmapUsage();
+
+    res.json({
+      roadmap: generatedData,
+      roadmapId: newRoadmapId,
+      usageInfo: updatedUsageInfo,
+      aiFeedback: aiFeedbackText,
+    });
+  } catch (error) {
+    console.error("Error regenerating roadmap:", error.message);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to regenerate roadmap" });
+  }
+});
 module.exports = router;

@@ -28,7 +28,7 @@ router.post("/", auth, async (req, res) => {
     // If the user can still send messages, increment the usage count
     await user.incrementChatbotUsage();
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [
           {

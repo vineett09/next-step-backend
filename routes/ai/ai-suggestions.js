@@ -172,6 +172,7 @@ Detailed Roadmap Structure:
 
 Customization Factors:
 - Precisely tailored to individual learning preferences
+- try to give response that can be fit on this structure, don't give the information that breaks down the html structure
 - Adaptable to ${answers.timeCommitment} weekly time investment
 - Considers existing ${answers.experience} experience level
 - Aligned with ${answers.careerGoals} career trajectory
@@ -184,7 +185,7 @@ Strategic Recommendations:
 5. Build a comprehensive, showcasable portfolio
 `;
     // Generate response using Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const roadmap = response
