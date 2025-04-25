@@ -8,6 +8,8 @@ const chatbotRoutes = require("./routes/Chatbot");
 const generateRoadmap = require("./routes/ai/generate-roadmap");
 const customRoadmapRoutes = require("./routes/RoadmapRoutes");
 const aiSuggestions = require("./routes/ai/ai-suggestions");
+const contentAggregator = require("./routes/contentAggregator");
+
 const cors = require("cors");
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 dotenv.config();
@@ -38,6 +40,7 @@ app.use("/api/ai", generateRoadmap);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/roadmaps", customRoadmapRoutes);
 app.use("/api/suggestions", aiSuggestions);
+app.use("/api/content", contentAggregator);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
