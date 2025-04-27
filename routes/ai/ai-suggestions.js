@@ -3,6 +3,7 @@ const axios = require("axios");
 const dotenv = require("dotenv");
 const auth = require("../../middleware/auth");
 const User = require("../../models/User");
+const sanitizeHtml = require("sanitize-html");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 dotenv.config();
@@ -34,10 +35,11 @@ router.post("/suggest", auth, async (req, res) => {
     const { answers } = req.body;
 
     // Prepare the prompt for Gemini
+    // Updated prompt for Gemini API
     const prompt = `
-You are a professional career guidance expert. Your task is to Create an in-depth, personalized learning roadmap with comprehensive, actionable guidance tailored specifically to the user's profile.
+You are a professional career guidance expert specialized in creating personalized tech learning roadmaps. Your task is to create a comprehensive, actionable, and structured learning guide tailored to the user's specific profile.
 
-User Profile Context:
+USER PROFILE:
 - Career Goal: ${answers.careerGoals}
 - Experience Level: ${answers.experience}
 - Learning Preference: ${answers.learningStyle}
@@ -49,149 +51,221 @@ User Profile Context:
     }
 - Development Preference: ${answers.preference}
 
-Roadmap Composition Guidelines:
-1. Provide a hyper-personalized, strategic learning path
-2. Break down the journey into clear, progressive phases
-3. Offer precise skill acquisition recommendations
-4. Include practical learning resources and project suggestions
-5. Align content with user's specific background and goals
+OUTPUT REQUIREMENTS:
+1. Deliver your response as properly formatted HTML without any markdown or code blocks
+2. Follow EXACTLY the HTML structure template provided below
+3. Fill in each section with personalized, detailed content based on the user profile
+4. Include specific, actionable advice and resources
+5. Ensure all HTML tags are properly closed and structured
+6. Don't include any extra line or something outside the HTML structure in response
 
-Detailed Roadmap Structure:
-
-<h1>Comprehensive Learning Roadmap for ${answers.careerGoals}</h1>
-
-<section>
-  <h2>Personal Learning Journey Overview</h2>
-  <p>A brief overview of the user's career goals, experience level, time commitment, current knowledge and learning preferences and how the roadmap will guide them.</p>
-</section>
+HTML STRUCTURE TEMPLATE:
+<h1>Personalized ${answers.careerGoals} Learning Roadmap</h1>
 
 <section>
-  <h2>Initial Assessment and Starting Point</h2>
-  <h3>Skill Gap Analysis</h3>
+  <h2>Your Learning Profile</h2>
+  <p>[Provide a brief personalized overview of the user's background, goals and how this roadmap addresses their specific situation]</p>
+  
+  <h3>Personalized Assessment</h3>
   <ul>
-    <li>Current Strengths: [Detailed breakdown of existing skills]</li>
-    <li>Critical Skills to Develop: [Precise skill requirements]</li>
-    <li>Recommended Learning Acceleration Strategies</li>
-    ... Add more assessment details as needed
+    <li><strong>Current Strengths:</strong> [Based on their current knowledge]</li>
+    <li><strong>Areas to Develop:</strong> [Key skills they need]</li>
+    <li><strong>Time Optimization:</strong> [Strategies based on their ${
+      answers.timeCommitment
+    } weekly commitment]</li>
+    <li><strong>Learning Approach:</strong> [Tailored to their ${
+      answers.learningStyle
+    } preference]</li>
   </ul>
-<section> 
-  <h2>Structured Learning Phases</h2>
-  <ol>
-    <li>
-      <h3>Phases (Weeks required)</h3>
-      <p>Intensive fundamental skill-building aligned with ${
-        answers.careerGoals
-      }</p>
-      <ul>
-        <li>You can add lists of skills here required for this phase as may as you want with a topic and then its description</li>
-      </ul>
-    </li>
-    <li>
-      ... Add more phases as needed for the natural flow of the roadmap required for user selected preferences to learn, with same structure as above
-    </li>
-  </ol>
 </section>
+
 <section>
-<section>
-  <h2>Critical Skills Mastery Roadmap</h2>
+  <h2>Essential Skills Foundation</h2>
+  <div class="essential-skills-container">
+  <span class="essential-skill-badge">SkillName</span>
+    [List 8-12 essential skills as skill badges]
+  </div>
+  
+  <h3>Core Fundamentals</h3>
   <ul>
-    <li>
-      <h3>you can add here skills that are required for the roadmap</h3>
-      <p>Detailed breakdown of essential technical competencies</p>
-      <ul>
-        <li>e.g., Programming Languages</li>
-        ... Add more sub-skills as needed with a brief description
-      </ul>
-    </li>
-    <li>
-      <h3>Soft Skills Development</h3>
-      <p>Professional and interpersonal skill enhancement</p>
-      <ul>
-        <li>e.g., Communication Techniques</li>
-        ... Add more soft skills as needed with a brief description
-      </ul>
-    </li>
-    ... Add more critical skills categories as required for the roadmap
+    <li><strong>[Fundamental 1]:</strong> [Brief description]</li>
+    <li><strong>[Fundamental 2]:</strong> [Brief description]</li>
+    [Add 3-5 more fundamentals]
+  </ul>
+</section>
+
+<section>
+  <h2>Learning Phases</h2>
+  
+  <h3>Phase 1: Phase Name (X weeks)</h3>
+  <p>[Description of this phase tailored to experience level]</p>
+  <ul>
+    <li><strong>Key Focus:</strong> [Main skills/concepts]</li>
+    <li><strong>Learning Materials:</strong> [Specific resources matching their learning style]</li>
+    <li><strong>Practical Project:</strong> [A specific beginner project idea with scope]</li>
+    <li><strong>Success Metrics:</strong> [How to know when to advance]</li>
+    ... [Add 2-3 more key points for this phase] as required 
+  </ul>
+  
+  ... [Add more phases with similar structure as required, adjusting for experience level and time commitment]
+
+<section>
+  <h2>Technology Stack Recommendations</h2>
+  
+  <h3>Primary Technologies</h3>
+  <ul>
+    <li><strong>[Technology 1]:</strong> [Why it's relevant to their goals]</li>
+    <li><strong>[Technology 2]:</strong> [Why it's relevant to their goals]</li>
+    <li><strong>[Technology 3]:</strong> [Why it's relevant to their goals]</li>
+    [Add 2-4 more technologies]
+  </ul>
+  
+  <h3>Complementary Tools</h3>
+  <ul>
+    <li><strong>[Tool 1]:</strong> [Brief description and purpose]</li>
+    <li><strong>[Tool 2]:</strong> [Brief description and purpose]</li>
+    [Add 2-3 more tools]
   </ul>
 </section>
 
 <section>
   <h2>Curated Learning Resources</h2>
+  
+  <h3>For Your ${answers.learningStyle} Learning Style</h3>
   <ul>
-    <li>
-      <h3>Online Courses and Platforms</h3>
-      <p>Recommended learning resources matching your ${
-        answers.learningStyle
-      } preference</p>
-      <ul>
-        <li>Platform-Specific Courses</li>
-        <li>Certifications</li>
-        <li>Interactive Learning Channels</li>
-      </ul>
-    </li>
-    <li>
-      <h3>Books and Documentation</h3>
-      <p>Essential reading materials for comprehensive understanding with links to read them online</p>
-    </li>
-    <li>
-      <h3>Community and Networking Resources</h3>
-      <p>Professional groups, forums, and collaboration platforms</p>
-    </li>
+    <li><strong>[Resource Name]:</strong> [Brief description] - [What makes it valuable]</li>
+    <li><strong>[Resource Name]:</strong> [Brief description] - [What makes it valuable]</li>
+    [Add 3-5 more resources specifically matching their learning style]
+  </ul>
+  
+  <h3>Essential References</h3>
+  <ul>
+    <li><strong>[Reference Name]:</strong> [Brief description]</li>
+    <li><strong>[Reference Name]:</strong> [Brief description]</li>
+    [Add 2-3 more references]
+  </ul>
+  
+  <h3>Community Resources</h3>
+  <ul>
+    <li><strong>[Community Name]:</strong> [What makes it valuable]</li>
+    <li><strong>[Community Name]:</strong> [What makes it valuable]</li>
+    [Add 1-2 more communities]
   </ul>
 </section>
 
 <section>
-  <h2>Strategic Project Portfolio</h2>
+  <h2>Project-Based Learning Path</h2>
+  
+  <h3>Beginner Projects</h3>
   <ul>
     <li>
-      <h3>Beginner-Level Projects</h3>
-      <p>Foundational project ideas to build initial confidence</p>
+      <strong>[Project Name]</strong>
+      <p>[Detailed description with specific implementation steps]</p>
+      <p><strong>Skills practiced:</strong> [List specific skills]</p>
     </li>
-    <li>
-      <h3>Intermediate Challenge Projects</h3>
-      <p>Complex projects demonstrating advanced skills</p>
-    </li>
-    <li>
-      <h3>Portfolio-Worthy Capstone Projects</h3>
-      <p>Comprehensive projects showcasing professional capabilities</p>
-    </li>
+    [Add 1-2 more beginner projects with similar detail]
+  </ul>
+  ... [Add intermediate and advanced projects with similar detail, adjusting for experience level]
+
+<section>
+  <h2>Roadmap Implementation Plan</h2>
+  
+  <h3>Weekly Schedule Template (${answers.timeCommitment})</h3>
+  <ul>
+    <li><strong>Days 1-2:</strong> [Focused activity recommendation]</li>
+    <li><strong>Days 3-4:</strong> [Focused activity recommendation]</li>
+    <li><strong>Days 5-7:</strong> [Focused activity recommendation]</li>
+  </ul>
+  
+  <h3>Progress Tracking Method</h3>
+  <ul>
+    <li><strong>Milestone 1:</strong> [Specific achievement at 25% of the journey]</li>
+    <li><strong>Milestone 2:</strong> [Specific achievement at 50% of the journey]</li>
+    <li><strong>Milestone 3:</strong> [Specific achievement at 75% of the journey]</li>
+    <li><strong>Final Milestone:</strong> [End goal achievement]</li>
   </ul>
 </section>
 
 <section>
-  <h2>Continuous Learning and Adaptation Strategy</h2>
-  <p>Ongoing skill refinement and staying current with ${
-    answers.careerGoals
-  } industry trends</p>
+  <h2>Industry Insights for ${answers.careerGoals}</h2>
+  
+  <h3>Current Trends</h3>
   <ul>
-    <li>Regular Skill Assessment Techniques</li>
-    <li>Emerging Technology Tracking</li>
-    <li>Professional Development Milestones</li>
+    <li><strong>[Trend 1]:</strong> [How it impacts this career path]</li>
+    ... [Add more trends with descriptions]
+  </ul>
+  
+  <h3>Career Growth Opportunities</h3>
+  <ul>
+    <li><strong>[Career Path 1]:</strong> [Description of potential evolution]</li>
+    ... [Add more career paths with descriptions]
   </ul>
 </section>
 
-Customization Factors:
-- Precisely tailored to individual learning preferences
-- try to give response that can be fit on this structure, don't give the information that breaks down the html structure
-- Adaptable to ${answers.timeCommitment} weekly time investment
-- Considers existing ${answers.experience} experience level
-- Aligned with ${answers.careerGoals} career trajectory
+<section>
+  <h2>Next Steps</h2>
+  <ol>
+    <li>[Immediate first action to take]</li>
+    <li>[Second immediate action]</li>
+    <li>[Third immediate action]</li>
+    <li>[Ongoing practice recommendation]</li>
+  </ol>
+  
+  <h3>Continuous Learning Strategy</h3>
+  <p>[Personalized advice for staying current in the field while balancing ${
+    answers.timeCommitment
+  } time commitment]</p>
+</section>
 
-Strategic Recommendations:
-1. Implement a flexible, iterative learning approach
-2. Prioritize hands-on, project-based learning
-3. Maintain consistent skill progression
-4. Develop both technical and soft skills
-5. Build a comprehensive, showcasable portfolio
+IMPORTANT GUIDELINES:
+1. Be extremely specific and practical in your advice
+2. Tailor content precisely to user's experience level (${answers.experience})
+3. Focus on actionable steps rather than generic advice
+4. Include ONLY relevant technologies for their specific career goal
+5. Adjust the timeframes in phases according to their time commitment (${
+      answers.timeCommitment
+    })
+6. Ensure all HTML is structured exactly as shown in the template
+7. For beginner content, be more detailed and explanatory
+8. For advanced users, go deeper into specialized topics
+9. Link everything back to their career goal of becoming a ${
+      answers.careerGoals
+    }
+
+Please ensure your response follows this exact HTML structure format without any markdown formatting, code blocks, or additional wrapping tags.
 `;
     // Generate response using Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const roadmap = response
+    const rawRoadmap = response
       .text()
       .replace(/```html|```/g, "")
       .trim();
+
+    // Sanitize HTML to prevent XSS vulnerabilities while preserving your structure
+    const roadmap = sanitizeHtml(rawRoadmap, {
+      allowedTags: [
+        "h1",
+        "h2",
+        "h3",
+        "p",
+        "ul",
+        "ol",
+        "li",
+        "strong",
+        "em",
+        "section",
+        "div",
+        "span",
+      ],
+      allowedAttributes: {
+        div: ["class"],
+        section: ["class"],
+        span: ["class"],
+      },
+    });
+
     // Save the roadmap to the user's saved suggestions
     user.savedAISuggestions.push({
       answers,
