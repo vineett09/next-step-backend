@@ -21,11 +21,59 @@ const AISuggestionsUsageSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   count: { type: Number, default: 0 },
 });
+
+const CareerTrackUsageSchema = new mongoose.Schema({
+  date: { type: Date, default: Date.now },
+  count: { type: Number, default: 0 },
+});
+
 const AIGeneratedRoadmapSchema = new mongoose.Schema({
   roadmap: { type: Object, required: true },
   title: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
+
+const CareerPathSchema = new mongoose.Schema({
+  inputs: {
+    currentSkills: { type: [String], default: [] },
+    careerGoal: { type: String, required: true },
+    hoursPerWeek: { type: String, default: "10-20" },
+    careerStage: { type: String, required: true },
+    educationLevel: { type: String, required: true },
+    currentlyStudying: { type: String, default: "No" },
+    graduationYear: { type: String, default: "" },
+    major: { type: String, default: "" },
+    workExperience: { type: String, default: "" },
+    previousIndustry: { type: String, default: "" },
+    previousRole: { type: String, default: "" },
+    currentCompany: { type: String, default: "" },
+    currentRole: { type: String, default: "" },
+    yearsOfExperience: { type: String, default: "" },
+    internshipExperience: { type: String, default: "" },
+    jobSearchStatus: { type: String, default: "" },
+    currentIndustry: { type: String, default: "" },
+    promotionTimeframe: { type: String, default: "" },
+    switchReason: { type: String, default: "" },
+    techEducation: { type: String, default: "" },
+    goalTimeframe: { type: String, default: "" },
+    learningPreference: { type: String, default: "" },
+  },
+  careerPath: [
+    {
+      title: { type: String, required: true },
+      timeToAchieve: { type: Number, required: true },
+      requiredSkills: { type: [String], required: true },
+      description: { type: String, required: true },
+      learningResources: { type: [String], required: true },
+      aiFeedback: { type: String },
+    },
+  ],
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 const UserSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true },
@@ -38,6 +86,7 @@ const UserSchema = new mongoose.Schema(
     roadmapUsage: [RoadmapUsageSchema],
     chatbotUsage: [ChatbotUsageSchema],
     aiSuggestionsUsage: [AISuggestionsUsageSchema],
+    careerTrackUsage: [CareerTrackUsageSchema],
     followedRoadmaps: [
       { type: mongoose.Schema.Types.ObjectId, ref: "CustomRoadmap" },
     ],
@@ -49,6 +98,7 @@ const UserSchema = new mongoose.Schema(
       },
     ],
     aiGeneratedRoadmaps: [AIGeneratedRoadmapSchema],
+    savedCareerPaths: [CareerPathSchema],
     googleId: {
       type: String,
       unique: true,
@@ -209,6 +259,46 @@ UserSchema.methods.incrementAISuggestionsUsage = function () {
     this.aiSuggestionsUsage[todayUsageIndex].count += 1;
   } else {
     this.aiSuggestionsUsage.push({ date: today, count: 1 });
+  }
+
+  return this.save();
+};
+
+UserSchema.methods.checkCareerTrackUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsage = this.careerTrackUsage.find(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsage) {
+    return {
+      canUse: todayUsage.count < 3,
+      usageCount: todayUsage.count,
+      remainingCount: 3 - todayUsage.count,
+    };
+  } else {
+    return {
+      canUse: true,
+      usageCount: 0,
+      remainingCount: 3,
+    };
+  }
+};
+
+UserSchema.methods.incrementCareerTrackUsage = function () {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsageIndex = this.careerTrackUsage.findIndex(
+    (usage) => new Date(usage.date).setHours(0, 0, 0, 0) === today.getTime()
+  );
+
+  if (todayUsageIndex !== -1) {
+    this.careerTrackUsage[todayUsageIndex].count += 1;
+  } else {
+    this.careerTrackUsage.push({ date: today, count: 1 });
   }
 
   return this.save();
