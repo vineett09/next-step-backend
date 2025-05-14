@@ -7,10 +7,41 @@ const dotenv = require("dotenv");
 const firebaseAdmin = require("../services/firebaseAdmin");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const auth = require("../middleware/auth"); // Assuming you have auth middleware
+
 dotenv.config();
 
 const router = express.Router();
+const updateLoginWithRefreshToken = async (user, res) => {
+  // Generate access token payload
+  const payload = {
+    userId: user._id,
+    email: user.email,
+  };
 
+  // Generate access token (short-lived)
+  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
+
+  // Generate refresh token (long-lived)
+  const refreshToken = jwt.sign(
+    { userId: user._id },
+    process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  // Save refresh token to user in database
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  // Return both tokens
+  return {
+    token: accessToken,
+    refreshToken,
+    user: { id: user.id, username: user.username, email: user.email },
+  };
+};
 router.post(
   "/register",
   [
@@ -51,19 +82,8 @@ router.post(
       const user = new User({ username, email, password: hashedPassword });
       await user.save();
 
-      const payload = {
-        userId: user._id,
-        email: user.email,
-      };
-
-      const token = jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-
-      res.json({
-        token,
-        user: { id: user.id, username: user.username, email: user.email },
-      });
+      const authData = await updateLoginWithRefreshToken(user, res);
+      res.json(authData);
     } catch (err) {
       console.error(err.message);
       res.status(500).json({ msg: "Server error" });
@@ -93,19 +113,9 @@ router.post(
       if (!isMatch)
         return res.status(400).json({ msg: "Invalid email or password" });
 
-      const payload = {
-        userId: user._id,
-        email: user.email,
-      };
-
-      const token = jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-
-      res.json({
-        token,
-        user: { id: user.id, username: user.username, email: user.email },
-      });
+      // Use the helper function to create and return tokens
+      const authData = await updateLoginWithRefreshToken(user, res);
+      res.json(authData);
     } catch (err) {
       console.error(err.message);
       res.status(500).json({ msg: "Server error" });
@@ -264,24 +274,13 @@ router.post(
         }
       }
 
-      // Generate JWT token
-      const token = jwt.sign(
-        {
-          userId: user._id,
-          email: user.email,
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+      const authData = await updateLoginWithRefreshToken(user, res);
 
-      // Successful response
       return res.json({
         success: true,
-        token,
+        ...authData,
         user: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
+          ...authData.user,
           isNewUser: !user.lastLogin,
         },
       });
@@ -429,4 +428,66 @@ router.post(
     }
   }
 );
+
+// Generate new access token using refresh token
+router.post("/refresh-token", async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      success: false,
+      msg: "Refresh token is required",
+    });
+  }
+
+  try {
+    // Find user with this refresh token
+    const user = await User.findOne({ refreshToken });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        msg: "Invalid refresh token",
+      });
+    }
+
+    // Generate new access token
+    const payload = {
+      userId: user._id,
+      email: user.email,
+    };
+
+    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "1h", // Keep the same expiry for access token
+    });
+
+    res.json({
+      success: true,
+      token: newAccessToken,
+      user: { id: user.id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    console.error("Token refresh error:", err);
+    res.status(500).json({
+      success: false,
+      msg: "Server error",
+    });
+  }
+});
+
+// Logout - invalidate refresh token
+router.post("/logout", auth, async (req, res) => {
+  try {
+    // Find the user and remove their refresh token
+    await User.findByIdAndUpdate(req.user.userId, { refreshToken: null });
+
+    res.json({ success: true, msg: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({
+      success: false,
+      msg: "Server error",
+    });
+  }
+});
 module.exports = router;
