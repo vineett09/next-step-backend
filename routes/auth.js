@@ -7,7 +7,8 @@ const dotenv = require("dotenv");
 const firebaseAdmin = require("../services/firebaseAdmin");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
-const auth = require("../middleware/auth"); // Assuming you have auth middleware
+const auth = require("../middleware/auth");
+const CustomRoadmap = require("../models/CustomRoadmaps");
 
 dotenv.config();
 
@@ -487,6 +488,36 @@ router.post("/logout", auth, async (req, res) => {
     res.status(500).json({
       success: false,
       msg: "Server error",
+    });
+  }
+});
+
+router.delete("/delete-account", auth, async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res
+        .status(401)
+        .json({ success: false, msg: "Unauthorized request" });
+    }
+
+    const userId = user._id;
+
+    // 1. Delete all roadmaps created by this user
+    await CustomRoadmap.deleteMany({ createdBy: userId });
+
+    // 2. Delete the user document
+    await User.findByIdAndDelete(userId);
+
+    return res.status(200).json({
+      success: true,
+      msg: "Account and related data deleted successfully.",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      msg: "Server error while deleting account.",
     });
   }
 });
