@@ -12,12 +12,14 @@ const contentAggregator = require("./routes/contentAggregator");
 const CareerTracker = require("./routes/ai/CareerTracker");
 
 const cors = require("cors");
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 dotenv.config();
 
-const app = express();
-app.use(express.json());
-app.use(cors());
+// Then access FRONTEND_URL
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
+// Define allowed origins using FRONTEND_URL
+const allowedOrigins = [FRONTEND_URL];
+
 // Configure CORS options
 const corsOptions = {
   origin: function (origin, callback) {
@@ -36,7 +38,11 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-app.options("*", cors(corsOptions));
+const app = express();
+app.use(express.json());
+
+// Apply corsOptions to all routes, not just OPTIONS requests
+app.use(cors(corsOptions));
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
