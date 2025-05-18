@@ -20,12 +20,23 @@ app.use(express.json());
 app.use(cors());
 // Configure CORS options
 const corsOptions = {
-  origin: [FRONTEND_URL], // Allow both origins
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true, // Enable set cookie on cross-origin requests
+  credentials: true,
+  optionsSuccessStatus: 204,
 };
 
-app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
