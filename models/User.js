@@ -1,10 +1,16 @@
 const mongoose = require("mongoose");
 
-const ProgressSchema = new mongoose.Schema({
-  roadmapId: { type: String, required: true },
-  nodeId: { type: String, required: true },
-  completed: { type: Boolean, default: true },
-  timestamp: { type: Date, default: Date.now },
+const RoadmapProgressSchema = new mongoose.Schema({
+  roadmapId: { type: String, required: true, unique: true },
+  completedNodes: [
+    {
+      nodeId: { type: String, required: true },
+      completed: { type: Boolean, default: true },
+      timestamp: { type: Date, default: Date.now },
+    },
+  ],
+  totalNodes: { type: Number, default: 0 }, // Add this line
+  lastUpdated: { type: Date, default: Date.now },
 });
 
 const RoadmapUsageSchema = new mongoose.Schema({
@@ -82,7 +88,7 @@ const UserSchema = new mongoose.Schema(
     refreshToken: { type: String },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
-    roadmapProgress: [ProgressSchema],
+    roadmapProgress: [RoadmapProgressSchema], // Updated to use grouped schema
     bookmarkedRoadmaps: [{ type: String }],
     roadmapUsage: [RoadmapUsageSchema],
     chatbotUsage: [ChatbotUsageSchema],
@@ -109,26 +115,113 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+UserSchema.methods.toggleNodeCompletion = function (
+  roadmapId,
+  nodeId,
+  totalNodes
+) {
+  let roadmapProgress = this.roadmapProgress.find(
+    (progress) => progress.roadmapId === roadmapId
+  );
+
+  // If roadmap doesn't exist, create it
+  if (!roadmapProgress) {
+    roadmapProgress = {
+      roadmapId: roadmapId,
+      completedNodes: [],
+      lastUpdated: new Date(),
+    };
+    this.roadmapProgress.push(roadmapProgress);
+  }
+
+  // Update totalNodes count regardless of the toggle action
+  if (totalNodes !== undefined) {
+    roadmapProgress.totalNodes = totalNodes;
+  }
+
+  // Find existing node in this roadmap
+  const existingNode = roadmapProgress.completedNodes.find(
+    (node) => node.nodeId === nodeId
+  );
+
+  if (existingNode) {
+    // Toggle completion status
+    existingNode.completed = !existingNode.completed;
+    existingNode.timestamp = new Date();
+
+    // If marking as incomplete, remove the node entirely
+    if (!existingNode.completed) {
+      roadmapProgress.completedNodes = roadmapProgress.completedNodes.filter(
+        (node) => node.nodeId !== nodeId
+      );
+    }
+  } else {
+    // Add new completed node
+    roadmapProgress.completedNodes.push({
+      nodeId: nodeId,
+      completed: true,
+      timestamp: new Date(),
+    });
+  }
+
+  // Update the lastUpdated timestamp
+  roadmapProgress.lastUpdated = new Date();
+};
+
+// FIXED: Move hasCompletedNode method outside of toggleNodeCompletion
 UserSchema.methods.hasCompletedNode = function (roadmapId, nodeId) {
-  return this.roadmapProgress.some(
-    (progress) =>
-      progress.roadmapId === roadmapId &&
-      progress.nodeId === nodeId &&
-      progress.completed
+  const roadmapProgress = this.roadmapProgress.find(
+    (progress) => progress.roadmapId === roadmapId
+  );
+
+  if (!roadmapProgress) return false;
+
+  return roadmapProgress.completedNodes.some(
+    (node) => node.nodeId === nodeId && node.completed
   );
 };
 
-UserSchema.methods.toggleNodeCompletion = function (roadmapId, nodeId) {
-  const existingProgress = this.roadmapProgress.find(
-    (progress) => progress.roadmapId === roadmapId && progress.nodeId === nodeId
+UserSchema.methods.getCompletedNodes = function (roadmapId) {
+  const roadmapProgress = this.roadmapProgress.find(
+    (progress) => progress.roadmapId === roadmapId
   );
-  if (existingProgress) {
-    existingProgress.completed = !existingProgress.completed;
-    existingProgress.timestamp = Date.now();
-  } else {
-    this.roadmapProgress.push({ roadmapId, nodeId, completed: true });
+
+  if (!roadmapProgress) return [];
+
+  return roadmapProgress.completedNodes
+    .filter((node) => node.completed)
+    .map((node) => ({
+      nodeId: node.nodeId,
+      timestamp: node.timestamp,
+    }));
+};
+
+// Helper method to get progress statistics for a roadmap
+UserSchema.methods.getRoadmapStats = function (roadmapId) {
+  const roadmapProgress = this.roadmapProgress.find(
+    (progress) => progress.roadmapId === roadmapId
+  );
+
+  if (!roadmapProgress) {
+    return {
+      totalCompleted: 0,
+      completedNodes: [],
+      lastUpdated: null,
+    };
   }
-  return this.save();
+
+  const completedNodes = roadmapProgress.completedNodes.filter(
+    (node) => node.completed
+  );
+
+  return {
+    totalCompleted: completedNodes.length,
+    completedNodes: completedNodes.map((node) => ({
+      nodeId: node.nodeId,
+      timestamp: node.timestamp,
+    })),
+    lastUpdated: roadmapProgress.lastUpdated,
+  };
 };
 
 UserSchema.methods.toggleBookmark = function (roadmapId) {

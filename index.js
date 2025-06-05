@@ -10,7 +10,7 @@ const customRoadmapRoutes = require("./routes/RoadmapRoutes");
 const aiSuggestions = require("./routes/ai/ai-suggestions");
 const contentAggregator = require("./routes/contentAggregator");
 const CareerTracker = require("./routes/ai/CareerTracker");
-
+const SmartMentor = require("./routes/ai/smart-mentor");
 const cors = require("cors");
 dotenv.config();
 
@@ -60,6 +60,7 @@ app.use("/api/roadmaps", customRoadmapRoutes);
 app.use("/api/suggestions", aiSuggestions);
 app.use("/api/content", contentAggregator);
 app.use("/api/career-track", CareerTracker);
+app.use("/api/smart-mentor", SmartMentor);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
