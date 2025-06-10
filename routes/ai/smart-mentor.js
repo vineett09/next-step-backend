@@ -29,6 +29,14 @@ router.get("/usage", auth, async (req, res) => {
 // Enhanced function to generate comprehensive user context for AI
 const generateUserContext = async (user) => {
   try {
+    // Create a map of AI roadmap IDs to their titles for user-friendly display.
+    const aiRoadmapTitleMap = {};
+    user.aiGeneratedRoadmaps?.forEach((roadmap) => {
+      if (roadmap._id) {
+        aiRoadmapTitleMap[roadmap._id.toString()] = roadmap.title;
+      }
+    });
+
     // === ROADMAP PROGRESS DATA ===
     const roadmapProgressData = {};
     let totalCompletedNodes = 0;
@@ -36,12 +44,17 @@ const generateUserContext = async (user) => {
 
     user.roadmapProgress?.forEach((roadmapProgress) => {
       const roadmapId = roadmapProgress.roadmapId;
+      // Use the roadmap's title from the map if it's an AI roadmap, otherwise use the ID.
+      const roadmapIdentifier = aiRoadmapTitleMap[roadmapId] || roadmapId;
+
       const completedNodes = roadmapProgress.completedNodes.filter(
         (node) => node.completed
       );
       const totalNodes = roadmapProgress.totalNodes || 0;
 
-      roadmapProgressData[roadmapId] = {
+      // Use the friendly identifier as the key in roadmapProgressData
+      roadmapProgressData[roadmapIdentifier] = {
+        originalId: roadmapId, // Keep original ID for any internal logic
         completed: completedNodes.length,
         total: totalNodes,
         completionRate:
@@ -140,10 +153,12 @@ const generateUserContext = async (user) => {
 
     // Analyze bookmark usage
     const bookmarkedWithProgress = bookmarkedRoadmaps.filter(
-      (roadmapId) => roadmapProgressData[roadmapId]
+      (roadmapId) =>
+        roadmapProgressData[aiRoadmapTitleMap[roadmapId] || roadmapId]
     );
     const bookmarkedWithoutProgress = bookmarkedRoadmaps.filter(
-      (roadmapId) => !roadmapProgressData[roadmapId]
+      (roadmapId) =>
+        !roadmapProgressData[aiRoadmapTitleMap[roadmapId] || roadmapId]
     );
 
     // === AI GENERATED CONTENT ===
@@ -217,8 +232,8 @@ Account Created: ${
 ===== ROADMAP PROGRESS DETAILS =====
 ${Object.entries(roadmapProgressData)
   .map(
-    ([roadmapId, data]) =>
-      `• ${roadmapId}: ${data.completed}/${data.total} nodes (${
+    ([roadmapIdentifier, data]) =>
+      `• ${roadmapIdentifier}: ${data.completed}/${data.total} nodes (${
         data.completionRate
       }% complete)
     Last Updated: ${
@@ -237,7 +252,7 @@ ${
     .map(
       (completion) =>
         `• Completed "${completion.nodeId}" in ${
-          completion.roadmapId
+          aiRoadmapTitleMap[completion.roadmapId] || completion.roadmapId
         } (${new Date(completion.timestamp).toLocaleDateString()})`
     )
     .join("\n") || "• No recent activity"
@@ -245,8 +260,16 @@ ${
 
 ===== ROADMAP ENGAGEMENT =====
 • Bookmarked Roadmaps: ${bookmarkedRoadmaps.length} total
-  - With Progress: ${bookmarkedWithProgress.join(", ") || "None"}
-  - Not Started: ${bookmarkedWithoutProgress.join(", ") || "None"}
+  - With Progress: ${
+    bookmarkedWithProgress
+      .map((id) => aiRoadmapTitleMap[id] || id)
+      .join(", ") || "None"
+  }
+  - Not Started: ${
+    bookmarkedWithoutProgress
+      .map((id) => aiRoadmapTitleMap[id] || id)
+      .join(", ") || "None"
+  }
 • Following Custom Roadmaps: ${followedRoadmaps.length}
 
 ===== AI-GENERATED CONTENT =====
@@ -469,6 +492,14 @@ router.get("/insights", auth, async (req, res) => {
   try {
     const user = req.user;
 
+    // Create a map of AI roadmap IDs to their titles
+    const aiRoadmapTitleMap = {};
+    user.aiGeneratedRoadmaps?.forEach((roadmap) => {
+      if (roadmap._id) {
+        aiRoadmapTitleMap[roadmap._id.toString()] = roadmap.title;
+      }
+    });
+
     // Calculate comprehensive roadmap statistics
     const roadmapStats = {};
     let totalCompletedNodes = 0;
@@ -483,8 +514,12 @@ router.get("/insights", auth, async (req, res) => {
       const totalNodesInRoadmap = roadmapProgress.totalNodes || 0;
       const completedCount = completedNodes.length;
 
+      // Use the title from the map if available, otherwise use the ID
+      const title = aiRoadmapTitleMap[roadmapId] || roadmapId;
+
       roadmapStats[roadmapId] = {
         roadmapId,
+        title: title, // Add title property
         completed: completedCount,
         total: totalNodesInRoadmap,
         completionRate:
@@ -625,12 +660,14 @@ router.get("/insights", auth, async (req, res) => {
         mostActiveRoadmap: mostActiveRoadmap
           ? {
               id: mostActiveRoadmap.roadmapId,
+              title: mostActiveRoadmap.title, // Add title here
               activity: mostActiveRoadmap.recentActivity.thisMonth,
               completionRate: mostActiveRoadmap.completionRate,
             }
           : null,
         roadmapActivity: roadmapStatsArray.map((roadmap) => ({
           roadmapId: roadmap.roadmapId,
+          title: roadmap.title, // Add title here
           thisWeek: roadmap.recentActivity.thisWeek,
           thisMonth: roadmap.recentActivity.thisMonth,
           completionRate: roadmap.completionRate,
@@ -638,6 +675,7 @@ router.get("/insights", auth, async (req, res) => {
         recentCompletions: sortedProgress.slice(0, 10).map((p) => ({
           nodeId: p.nodeId,
           roadmapId: p.roadmapId,
+          roadmapTitle: aiRoadmapTitleMap[p.roadmapId] || p.roadmapId, // Add title here
           timestamp: p.timestamp,
         })),
       },
@@ -711,7 +749,7 @@ router.get("/insights", auth, async (req, res) => {
     if (stagnantRoadmaps.length > 0) {
       const roadmap = stagnantRoadmaps[0];
       insights.recommendations.push(
-        `Resume progress on "${roadmap.roadmapId}" - you're ${roadmap.completionRate}% complete and close to a milestone`
+        `Resume progress on "${roadmap.title}" - you're ${roadmap.completionRate}% complete and close to a milestone`
       );
     }
 
@@ -724,7 +762,7 @@ router.get("/insights", auth, async (req, res) => {
     if (nearCompletionRoadmaps.length > 0) {
       const roadmap = nearCompletionRoadmaps[0];
       insights.recommendations.push(
-        `You're ${roadmap.completionRate}% done with "${roadmap.roadmapId}" - finish strong to complete it!`
+        `You're ${roadmap.completionRate}% done with "${roadmap.title}" - finish strong to complete it!`
       );
     }
 
@@ -756,6 +794,14 @@ router.get("/suggestions", auth, async (req, res) => {
     const user = req.user;
     const suggestions = [];
 
+    // Create a map of AI roadmap IDs to their titles
+    const aiRoadmapTitleMap = {};
+    user.aiGeneratedRoadmaps?.forEach((roadmap) => {
+      if (roadmap._id) {
+        aiRoadmapTitleMap[roadmap._id.toString()] = roadmap.title;
+      }
+    });
+
     // === ROADMAP PROGRESS ANALYSIS ===
     const roadmapStats = {};
     let totalCompletedNodes = 0;
@@ -770,8 +816,11 @@ router.get("/suggestions", auth, async (req, res) => {
       const totalNodesInRoadmap = roadmapProgress.totalNodes || 0;
       const completedCount = completedNodes.length;
 
+      const title = aiRoadmapTitleMap[roadmapId] || roadmapId;
+
       roadmapStats[roadmapId] = {
         roadmapId,
+        title: title,
         completed: completedCount,
         total: totalNodesInRoadmap,
         completionRate:
@@ -820,7 +869,8 @@ router.get("/suggestions", auth, async (req, res) => {
       suggestions.push({
         type: "finish_roadmap",
         roadmapId: roadmap.roadmapId,
-        title: `Finish ${roadmap.roadmapId} Roadmap`,
+        roadmapTitle: roadmap.title,
+        title: `Finish ${roadmap.title} Roadmap`,
         description: `You're ${roadmap.completionRate.toFixed(
           1
         )}% complete! Only ${remainingNodes} nodes left to finish.`,
@@ -848,7 +898,8 @@ router.get("/suggestions", auth, async (req, res) => {
       suggestions.push({
         type: "continue_active",
         roadmapId: roadmap.roadmapId,
-        title: `Continue ${roadmap.roadmapId} Progress`,
+        roadmapTitle: roadmap.title,
+        title: `Continue ${roadmap.title} Progress`,
         description: `Great momentum! You've completed ${roadmap.recentActivity.thisMonth} nodes this month. Keep going!`,
         priority: "medium",
         stats: {
@@ -878,7 +929,8 @@ router.get("/suggestions", auth, async (req, res) => {
       suggestions.push({
         type: "revive_roadmap",
         roadmapId: roadmap.roadmapId,
-        title: `Revive ${roadmap.roadmapId} Learning`,
+        roadmapTitle: roadmap.title,
+        title: `Revive ${roadmap.title} Learning`,
         description: `You made good progress (${roadmap.completionRate.toFixed(
           1
         )}% complete) but haven't updated in ${daysSinceUpdate} days. Time to get back on track!`,
@@ -908,7 +960,8 @@ router.get("/suggestions", auth, async (req, res) => {
       suggestions.push({
         type: "bookmarked_low_progress",
         roadmapId,
-        title: `Start ${roadmapId} Properly`,
+        roadmapTitle: roadmap.title,
+        title: `Start ${roadmap.title} Properly`,
         description: `You bookmarked this but only completed ${roadmap.completed} nodes. Give it a proper start!`,
         priority: "medium",
         stats: {
@@ -925,10 +978,12 @@ router.get("/suggestions", auth, async (req, res) => {
       .slice(0, 3);
 
     untouchedBookmarks.forEach((roadmapId) => {
+      const title = aiRoadmapTitleMap[roadmapId] || roadmapId;
       suggestions.push({
         type: "start_bookmarked",
         roadmapId,
-        title: `Start ${roadmapId} Roadmap`,
+        roadmapTitle: title,
+        title: `Start ${title} Roadmap`,
         description:
           "You bookmarked this roadmap but haven't started yet. Ready to begin your learning journey?",
         priority: "low",
@@ -1026,6 +1081,8 @@ router.get("/suggestions", auth, async (req, res) => {
       const lastActivity = allCompletedNodes.sort(
         (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
       )[0];
+      const lastActivityTitle =
+        aiRoadmapTitleMap[lastActivity.roadmapId] || lastActivity.roadmapId;
 
       const daysSinceActivity = Math.floor(
         (now - new Date(lastActivity.timestamp)) / (1000 * 60 * 60 * 24)
@@ -1039,7 +1096,7 @@ router.get("/suggestions", auth, async (req, res) => {
         streakInfo: {
           currentStreak: 0,
           daysSinceActivity,
-          lastRoadmap: lastActivity.roadmapId,
+          lastRoadmap: lastActivityTitle,
         },
       });
     } else if (currentStreak >= 3) {
@@ -1063,13 +1120,14 @@ router.get("/suggestions", auth, async (req, res) => {
 
     if (recentAIRoadmaps.length > 0) {
       const unusedAIRoadmaps = recentAIRoadmaps.filter(
-        (aiRoadmap) => !roadmapStats[aiRoadmap.title]
+        (aiRoadmap) => !roadmapStats[aiRoadmap._id.toString()]
       );
 
       unusedAIRoadmaps.slice(0, 2).forEach((aiRoadmap) => {
         suggestions.push({
           type: "use_ai_roadmap",
-          roadmapId: aiRoadmap.title,
+          roadmapId: aiRoadmap._id.toString(),
+          roadmapTitle: aiRoadmap.title,
           title: `Start Your AI-Generated Roadmap`,
           description: `You created "${aiRoadmap.title}" but haven't started it yet. Put your custom roadmap to use!`,
           priority: "medium",
@@ -1097,7 +1155,7 @@ router.get("/suggestions", auth, async (req, res) => {
       suggestions.push({
         type: "use_ai_suggestions",
         title: "Get AI Learning Suggestions",
-        description: `You have ${usageStats.aiSuggestions.remainingCount} AI suggestions remaining today. Get personalized recommendations!`,
+        description: `You have ${usageStats.aiSuggestions.remainingCount} AI suggestions remaining today. Get AI learning recommendations!`,
         priority: "low",
         usageInfo: {
           remaining: usageStats.aiSuggestions.remainingCount,
@@ -1114,7 +1172,7 @@ router.get("/suggestions", auth, async (req, res) => {
         type: "create_career_path",
         title: "Create Your Career Path",
         description:
-          "Plan your learning journey with a personalized career path. Define your goals and get structured guidance.",
+          "Plan your learning journey with an AI generated career path. Define your goals and get structured guidance.",
         priority: "medium",
         usageInfo: {
           remaining: usageStats.careerTrack.remainingCount,
@@ -1122,8 +1180,6 @@ router.get("/suggestions", auth, async (req, res) => {
         },
       });
     }
-
-    // Replace this section in your suggestions endpoint (around line 580-595)
 
     // === OVERALL PROGRESS SUGGESTIONS ===
     const overallCompletionRate =

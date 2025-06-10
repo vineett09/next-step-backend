@@ -3,12 +3,24 @@ const axios = require("axios");
 const dotenv = require("dotenv");
 const auth = require("../../middleware/auth");
 const User = require("../../models/User");
+const crypto = require("crypto");
 
 dotenv.config();
 const router = express.Router();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+// Helper function to add unique IDs to each node in the roadmap
+const addUniqueIds = (node) => {
+  if (!node) return;
+  // Assign a unique ID to the current node
+  node.id = crypto.randomUUID();
+  // Recursively call the function for all children
+  if (node.children) {
+    node.children.forEach(addUniqueIds);
+  }
+};
 
 // Get user's roadmap usage
 router.get("/usage", auth, async (req, res) => {
@@ -59,6 +71,7 @@ router.get("/generated-roadmaps/:id", auth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 // Delete an AI-generated roadmap by ID
 router.delete("/generated-roadmaps/:id", auth, async (req, res) => {
   try {
@@ -67,9 +80,11 @@ router.delete("/generated-roadmaps/:id", auth, async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    // Find the roadmap by ID and remove it
+    const roadmapIdToDelete = req.params.id;
+
+    // Find the roadmap by ID and remove it from aiGeneratedRoadmaps
     const roadmapIndex = user.aiGeneratedRoadmaps.findIndex(
-      (roadmap) => roadmap._id.toString() === req.params.id
+      (roadmap) => roadmap._id.toString() === roadmapIdToDelete
     );
 
     if (roadmapIndex === -1) {
@@ -77,9 +92,19 @@ router.delete("/generated-roadmaps/:id", auth, async (req, res) => {
     }
 
     user.aiGeneratedRoadmaps.splice(roadmapIndex, 1);
+
+    // Also remove the associated progress data from roadmapProgress
+    const progressIndex = user.roadmapProgress.findIndex(
+      (progress) => progress.roadmapId === roadmapIdToDelete
+    );
+
+    if (progressIndex > -1) {
+      user.roadmapProgress.splice(progressIndex, 1);
+    }
+
     await user.save();
 
-    res.json({ msg: "Roadmap deleted successfully" });
+    res.json({ msg: "Roadmap and its progress deleted successfully" });
   } catch (error) {
     console.error("Error deleting roadmap:", error.message);
     res.status(500).json({ error: "Server error" });
@@ -189,36 +214,6 @@ Create a complete learning roadmap that covers all necessary knowledge areas for
         },
       ],
     };
-    const feedbackRequestBody = {
-      contents: [
-        {
-          parts: [
-            {
-              text: `The user has chosen the topic: "${input}" to learn at "${level}" level and timeframe "${timeframe}". They also added:
-    "${contextInfo || "No additional context"}".
-    
-    Please provide a short helpful note or feedback to the user in one paragraph including:
-    - Whether their goal and level align well with the timeframe
-    - Any potential improvements in how they structured their query
-    - Suggestions for better outcomes, learning tips, better time commitment or extra tools to consider
-    - Don't include any extra symbols or formatting, just plain text
-    Limit response to 6-7 sentences. Be direct, clear, and supportive.`,
-            },
-          ],
-        },
-      ],
-    };
-
-    const feedbackResponse = await axios.post(
-      GEMINI_API_URL,
-      feedbackRequestBody,
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-
-    const aiFeedbackText =
-      feedbackResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     const response = await axios.post(GEMINI_API_URL, requestBody, {
       headers: {
@@ -242,6 +237,7 @@ Create a complete learning roadmap that covers all necessary knowledge areas for
     let generatedData;
     try {
       generatedData = JSON.parse(generatedText);
+      addUniqueIds(generatedData);
     } catch (jsonError) {
       console.error("Raw response before parsing:", generatedText);
       throw new Error(`Invalid JSON response: ${generatedText}`);
@@ -269,7 +265,6 @@ Create a complete learning roadmap that covers all necessary knowledge areas for
       roadmap: generatedData,
       roadmapId: newRoadmapId,
       usageInfo: updatedUsageInfo,
-      aiFeedback: aiFeedbackText,
     });
   } catch (error) {
     console.error("Error generating roadmap:", error.message);
@@ -383,37 +378,6 @@ router.post("/regenerate", auth, async (req, res) => {
       ],
     };
 
-    const feedbackRequestBody = {
-      contents: [
-        {
-          parts: [
-            {
-              text: `The user generated a roadmap for: "${originalTopic}" at "${level}" level with timeframe "${timeframe}".
-They've requested modifications: "${modifications}".
-
-Please provide a short helpful note about the improvements made to their roadmap in one paragraph including:
-- What specific changes were made based on their request
-- How the modified roadmap better addresses their needs
-- Any additional insights about the modified learning path
-
-Limit response to 5-6 sentences. Be direct, clear, and highlight the value of the changes made.`,
-            },
-          ],
-        },
-      ],
-    };
-
-    const feedbackResponse = await axios.post(
-      GEMINI_API_URL,
-      feedbackRequestBody,
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-
-    const aiFeedbackText =
-      feedbackResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
     const response = await axios.post(GEMINI_API_URL, requestBody, {
       headers: {
         "Content-Type": "application/json",
@@ -436,6 +400,7 @@ Limit response to 5-6 sentences. Be direct, clear, and highlight the value of th
     let generatedData;
     try {
       generatedData = JSON.parse(generatedText);
+      addUniqueIds(generatedData);
     } catch (jsonError) {
       console.error("Raw response before parsing:", generatedText);
       throw new Error(`Invalid JSON response: ${generatedText}`);
@@ -463,7 +428,6 @@ Limit response to 5-6 sentences. Be direct, clear, and highlight the value of th
       roadmap: generatedData,
       roadmapId: newRoadmapId,
       usageInfo: updatedUsageInfo,
-      aiFeedback: aiFeedbackText,
     });
   } catch (error) {
     console.error("Error regenerating roadmap:", error.message);

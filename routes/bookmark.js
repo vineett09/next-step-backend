@@ -7,8 +7,8 @@ dotenv.config();
 
 const router = express.Router();
 router.post("/bookmark-toggle", auth, async (req, res) => {
-  const { roadmapId } = req.body;
-  if (!roadmapId) {
+  const { roadmapId, id } = req.body;
+  if (!roadmapId && !id) {
     return res.status(400).json({ message: "RoadmapId is required" });
   }
 
