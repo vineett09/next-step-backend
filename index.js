@@ -42,7 +42,6 @@ const corsOptions = {
 const app = express();
 app.use(express.json());
 
-// Apply corsOptions to all routes, not just OPTIONS requests
 app.use(cors(corsOptions));
 mongoose
   .connect(process.env.MONGO_URI, {
