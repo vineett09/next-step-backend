@@ -51,6 +51,10 @@ mongoose
   })
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log(err));
+// server.js or index.js (Express)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Backend is healthy 🚀" });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/bookmark", bookmarkRoutes);
